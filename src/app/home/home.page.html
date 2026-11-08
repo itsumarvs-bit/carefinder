@@ -1,0 +1,142 @@
+<ion-content [fullscreen]="true" class="page-content">
+  <main class="page-shell">
+    <section class="welcome">
+      <div class="welcome-copy">
+        <p class="eyebrow">YOUR HEALTH, CLOSER</p>
+        <h1>Find care around <span>you.</span></h1>
+        <p class="welcome-description">Discover hospitals, clinics, pharmacies, and community health services in one place.</p>
+      </div>
+      <div class="welcome-art" aria-hidden="true">
+        <div class="art-circle"><ion-icon name="medical"></ion-icon></div>
+        <span class="art-dot dot-one"></span><span class="art-dot dot-two"></span>
+      </div>
+      <div class="search-row">
+        <ion-searchbar
+          [(ngModel)]="searchText"
+          placeholder="Search facilities, services, or address"
+          inputmode="search"
+          aria-label="Search healthcare facilities">
+        </ion-searchbar>
+        <ion-button class="location-button" fill="clear" [disabled]="locating" (click)="useMyLocation()">
+          @if (locating) {
+            <ion-spinner name="crescent"></ion-spinner>
+          }
+          @if (!locating) {
+            <ion-icon slot="start" name="locate-outline"></ion-icon>
+          }
+          <span>{{ locating ? 'Locating' : 'Use my location' }}</span>
+        </ion-button>
+      </div>
+      @if (locationMessage) {
+        <p class="location-note"><ion-icon name="information-circle-outline"></ion-icon>{{ locationMessage }}</p>
+      }
+    </section>
+
+    @if (isDemo) {
+      <div class="demo-banner">
+        <ion-icon name="flask-outline"></ion-icon>
+        <span>Preview mode — displaying clearly labeled sample facilities. Configure Firebase to load live directory data.</span>
+      </div>
+    }
+
+    <section class="category-section">
+      <div class="section-heading">
+        <div><p class="eyebrow">BROWSE BY TYPE</p><h2>What do you need?</h2></div>
+        <a routerLink="/map" class="text-link">Explore map <ion-icon name="arrow-forward-outline"></ion-icon></a>
+      </div>
+      <div class="category-scroller">
+        @for (category of categories; track category) {
+          <button
+            class="category-card"
+            [class.active]="selectedCategory === category.id"
+            (click)="selectedCategory = category.id">
+            <span class="category-icon"><ion-icon [name]="category.icon"></ion-icon></span>
+            <span class="category-label">{{ category.label }}</span>
+            @if (category.id !== 'all' && (facilities$ | async); as facilities) {
+              <span class="category-count">{{ categoryCount(facilities, category.id) }} places</span>
+            }
+            @if (category.id === 'all') {
+              <span class="category-count">Find local care</span>
+            }
+          </button>
+        }
+      </div>
+    </section>
+
+    <section class="nearby-section">
+      <div class="section-heading">
+        <div><p class="eyebrow">{{ location ? 'CLOSE TO YOU' : 'CARE IN YOUR COMMUNITY' }}</p><h2>Healthcare facilities</h2></div>
+        <a routerLink="/map" class="view-map"><ion-icon name="map-outline"></ion-icon> Map view</a>
+      </div>
+
+      @if (facilities$ | async; as facilities) {
+        @if (loadError) {
+          <p class="error-note"><ion-icon name="warning-outline"></ion-icon>{{ loadError }}</p>
+        }
+        @if (getVisibleFacilities(facilities); as visible) {
+          <div class="facility-grid">
+            @for (facility of visible; track facility) {
+              <article class="facility-card" [routerLink]="['/facility', facility.id]">
+                <div class="facility-visual" [class]="'facility-visual category-' + facility.category">
+                  @if (facility.imageUrl) {
+                    <img [src]="facility.imageUrl" [alt]="facility.name" loading="lazy">
+                  }
+                  @if (!facility.imageUrl) {
+                    <ion-icon [name]="facility.category === 'pharmacy' ? 'bandage-outline' : facility.category === 'hospital' ? 'medkit-outline' : facility.category === 'clinic' ? 'pulse-outline' : 'heart-outline'"></ion-icon>
+                  }
+                  @if (facility.isSample) {
+                    <span class="sample-tag">DEMO</span>
+                  }
+                  <button
+                    class="favorite-button"
+                    [class.saved]="(favoriteIds$ | async)?.includes(facility.id)"
+                    (click)="$event.stopPropagation(); toggleFavorite(facility)"
+                    [attr.aria-label]="(favoriteIds$ | async)?.includes(facility.id) ? 'Remove from favorites' : 'Add to favorites'">
+                    <ion-icon [name]="(favoriteIds$ | async)?.includes(facility.id) ? 'heart' : 'heart-outline'"></ion-icon>
+                  </button>
+                </div>
+                <div class="facility-body">
+                  <div class="facility-meta">
+                    <span class="facility-category">{{ categoryLabels[facility.category] }}</span>
+                    @if (facility.isVerified) {
+                      <span class="verified"><ion-icon name="checkmark-circle"></ion-icon> Verified</span>
+                    }
+                    @if (!facility.isVerified) {
+                      <span class="unverified"><ion-icon name="alert-circle-outline"></ion-icon> Unverified</span>
+                    }
+                  </div>
+                  <h3>{{ facility.name || 'Name not provided' }}</h3>
+                  <p class="address"><ion-icon name="location-outline"></ion-icon><span>{{ facility.address }}@if (facility.city) {
+                  , {{ facility.city }}
+                }</span></p>
+                <div class="card-footer">
+                  <span class="open-status" [class.is-open]="status(facility) === 'Open now'">
+                    <span class="status-dot"></span>{{ status(facility) }}
+                  </span>
+                  @if (distance(facility); as km) {
+                    <span class="distance">{{ km < 1 ? (km * 1000 | number:'1.0-0') + ' m' : (km | number:'1.1-1') + ' km' }}</span>
+                  }
+                  <span class="details-link">Details <ion-icon name="arrow-forward-outline"></ion-icon></span>
+                </div>
+              </div>
+            </article>
+          }
+        </div>
+      }
+      @if (!loadError && getVisibleFacilities(facilities).length === 0) {
+        <div class="empty-state">
+          <span class="empty-icon"><ion-icon name="search-outline"></ion-icon></span>
+          <h3>No facilities found</h3>
+          <p>Try a different name, service, location, or category.</p>
+          <ion-button fill="clear" (click)="searchText = ''; selectedCategory = 'all'">Clear filters</ion-button>
+        </div>
+      }
+    }
+  </section>
+
+  <aside class="emergency-note">
+    <span class="emergency-icon"><ion-icon name="call-outline"></ion-icon></span>
+    <div><strong>Need emergency help?</strong><p>CareFinder is a facility directory, not an emergency service. Contact your local emergency services directly.</p></div>
+  </aside>
+</main>
+</ion-content>

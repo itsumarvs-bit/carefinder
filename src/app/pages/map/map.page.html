@@ -1,0 +1,39 @@
+<ion-content class="map-content">
+  <main class="map-shell">
+    <div class="map-heading"><div><p class="eyebrow">HEALTHCARE NEAR YOU</p><h1>Explore the map</h1></div><ion-button [disabled]="loadingLocation" (click)="useMyLocation()">@if (loadingLocation) {
+    <ion-spinner name="crescent"></ion-spinner>
+    }@if (!loadingLocation) {
+    <ion-icon slot="start" name="locate-outline"></ion-icon>Use my location
+  }</ion-button></div>
+  <p class="location-message"><ion-icon name="information-circle-outline"></ion-icon>{{ locationMessage }}</p>
+  <div class="map-layout">
+    <div #mapHost class="map-host" aria-label="Map showing healthcare facilities"></div>
+    <aside class="facility-list">
+      <h2>Facilities <span>{{ visibleFacilities.length }}</span></h2>
+      <p class="map-hint">{{ openMapMessage }}</p>
+      @if (openMapError) {
+        <ion-button size="small" fill="clear" (click)="retryOpenMapSearch()">Try again</ion-button>
+      }
+      @for (facility of visibleFacilities; track facility.id) {
+        <button class="map-facility" [class.selected]="selectedFacility?.id === facility.id" (click)="selectFacility(facility)">
+          <span class="pin"><ion-icon name="medkit-outline"></ion-icon></span>
+          <span class="map-facility-copy"><strong>{{ facility.name || 'Name not provided' }}</strong><small>{{ facility.address || 'Address not provided' }}</small><em>{{ categoryLabels[facility.category] }}@if (facility.source === 'openstreetmap') { · OpenStreetMap }</em></span>
+        </button>
+      }
+      @if (!visibleFacilities.length && !loadingOpenMapFacilities) {
+        <p class="list-empty">No mapped facilities in this view yet. Zoom in or move to another area to search.</p>
+      }
+    </aside>
+  </div>
+  @if (selectedFacility; as facility) {
+    <section class="selected-card">
+      <div><small>{{ categoryLabels[facility.category] }}</small><h2>{{ facility.name || 'Name not provided' }}</h2><p>{{ facility.address || 'Address not provided' }}</p></div>
+      <a [href]="directions(facility)" target="_blank" rel="noopener noreferrer"><ion-icon name="navigate-outline"></ion-icon> Directions</a>
+      @if (!facility.id.startsWith('osm-')) {
+        <a [routerLink]="['/facility', facility.id]" class="details-link">Details</a>
+      }
+    </section>
+  }
+  <p class="map-disclaimer">Map tiles and community-mapped healthcare places © OpenStreetMap contributors. Coverage and listing details vary by area and are not independently verified by CareFinder. Directions open in Google Maps and may require an internet connection. CareFinder does not provide real-time traffic or turn-by-turn navigation.</p>
+</main>
+</ion-content>

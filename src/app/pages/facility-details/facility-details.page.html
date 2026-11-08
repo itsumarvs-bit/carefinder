@@ -1,0 +1,93 @@
+<ion-content class="details-content">
+  @if (facility$ | async; as facility) {
+    <main class="details-shell">
+      <div class="hero-image">
+        @if (facility.imageUrl) {
+          <img [src]="facility.imageUrl" [alt]="facility.name">
+        }
+        @if (!facility.imageUrl) {
+          <ion-icon [name]="facility.category === 'pharmacy' ? 'bandage-outline' : facility.category === 'hospital' ? 'medkit-outline' : facility.category === 'clinic' ? 'pulse-outline' : 'heart-outline'"></ion-icon>
+        }
+        @if (facility.isSample) {
+          <span class="demo-chip">DEMONSTRATION RECORD</span>
+        }
+      </div>
+      <div class="detail-heading">
+        <div>
+          <span class="category">{{ categoryLabels[facility.category] }}</span>
+          <h1>{{ facility.name || 'Name not provided' }}</h1>
+          <p class="verified" [class.not-verified]="!facility.isVerified">
+            <ion-icon [name]="facility.isVerified ? 'checkmark-circle' : 'alert-circle-outline'"></ion-icon>
+            {{ facility.isVerified ? 'Verified listing' : 'Not yet verified' }}
+          </p>
+        </div>
+        <button class="save-button" (click)="save(facility)">
+          <ion-icon [name]="(favoriteIds$ | async)?.includes(facility.id) ? 'heart' : 'heart-outline'"></ion-icon>
+          {{ (favoriteIds$ | async)?.includes(facility.id) ? 'Saved' : 'Save' }}
+        </button>
+      </div>
+      <p class="description">{{ facility.description || 'No description has been provided for this facility.' }}</p>
+      <div class="action-row">
+        @if (facility.contactNumber) {
+          <a class="primary-action" [href]="'tel:' + facility.contactNumber"><ion-icon name="call-outline"></ion-icon> Call facility</a>
+        }
+        <a class="primary-action" [href]="directions(facility)" target="_blank" rel="noopener noreferrer"><ion-icon name="navigate-outline"></ion-icon> Get directions</a>
+      </div>
+      <div class="detail-grid">
+        <section class="detail-card">
+          <h2><ion-icon name="information-circle-outline"></ion-icon> Contact & location</h2>
+          <div class="info-row"><span class="info-icon"><ion-icon name="location-outline"></ion-icon></span><div><small>Address</small><p>{{ facility.address }}@if (facility.barangay) {
+          , {{ facility.barangay }}
+          }@if (facility.city) {
+          , {{ facility.city }}
+          }@if (facility.province) {
+          , {{ facility.province }}
+        }</p></div></div>
+        @if (facility.contactNumber) {
+          <div class="info-row"><span class="info-icon"><ion-icon name="call-outline"></ion-icon></span><div><small>Phone</small><a [href]="'tel:' + facility.contactNumber">{{ facility.contactNumber }}</a></div></div>
+        }
+        @if (facility.email) {
+          <div class="info-row"><span class="info-icon"><ion-icon name="mail-outline"></ion-icon></span><div><small>Email</small><a [href]="'mailto:' + facility.email">{{ facility.email }}</a></div></div>
+        }
+        @if (facility.website) {
+          <div class="info-row"><span class="info-icon"><ion-icon name="globe-outline"></ion-icon></span><div><small>Website</small><a [href]="facility.website" target="_blank" rel="noopener noreferrer">{{ facility.website }}</a></div></div>
+        }
+        @if (facility.latitude !== undefined && facility.longitude !== undefined) {
+          <div class="info-row"><span class="info-icon"><ion-icon name="pin-outline"></ion-icon></span><div><small>Coordinates</small><p>{{ facility.latitude }}, {{ facility.longitude }}</p></div></div>
+        }
+        @if (!facility.contactNumber && !facility.email && !facility.website) {
+          <p class="unavailable">Contact information is unavailable.</p>
+        }
+      </section>
+      <section class="detail-card">
+        <h2><ion-icon name="time-outline"></ion-icon> Operating hours</h2>
+        <p class="status-pill" [class.open]="status(facility) === 'Open now'"><span></span>{{ status(facility) }}</p>
+        <div class="hours-list">@for (day of days(facility); track day) {
+          <div><span>{{ day.label }}</span><strong>{{ day.value }}</strong></div>
+        }</div>
+        @if (facility.timeZone) {
+          <p class="timezone-note">Times shown in {{ facility.timeZone }} local time.</p>
+        }
+      </section>
+      @if (facility.services?.length) {
+        <section class="detail-card">
+          <h2><ion-icon name="medkit-outline"></ion-icon> Medical services</h2>
+          <div class="chips">@for (service of facility.services; track service) {
+            <span>{{ service }}</span>
+          }</div>
+        </section>
+      }
+      @if (facility.amenities?.length) {
+        <section class="detail-card">
+          <h2><ion-icon name="sparkles-outline"></ion-icon> Amenities</h2>
+          <div class="chips">@for (amenity of facility.amenities; track amenity) {
+            <span>{{ amenity }}</span>
+          }</div>
+        </section>
+      }
+    </div>
+  </main>
+} @else {
+  <div class="missing-state"><ion-icon name="search-outline"></ion-icon><h2>Facility not found</h2><p>This facility may have been removed or is not currently listed.</p><ion-button routerLink="/home">Browse facilities</ion-button></div>
+}
+</ion-content>

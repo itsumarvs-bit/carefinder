@@ -1,0 +1,47 @@
+<ion-content class="auth-content">
+  <div class="auth-shell">
+    <section class="auth-card">
+      <a class="back-link" routerLink="/home"><ion-icon name="arrow-back-outline"></ion-icon> Back to directory</a>
+      <span class="auth-icon"><ion-icon name="person-outline"></ion-icon></span>
+      <p class="eyebrow">{{ isRegister ? 'JOIN CAREFINDER' : 'WELCOME BACK' }}</p>
+      <h1>{{ isRegister ? 'Create your account' : 'Sign in to your account' }}</h1>
+      <p class="subtitle">{{ isRegister ? 'Save the facilities that matter to you.' : 'Sign in to access your saved facilities.' }}</p>
+
+      <form (ngSubmit)="submit()" #authForm="ngForm">
+        @if (isRegister) {
+          <ion-item class="field">
+            <ion-input name="displayName" [(ngModel)]="displayName" label="Full name" labelPlacement="stacked" autocomplete="name" required></ion-input>
+          </ion-item>
+        }
+        <ion-item class="field">
+          <ion-input name="email" [(ngModel)]="email" label="Email address" labelPlacement="stacked" type="email" autocomplete="email" required></ion-input>
+        </ion-item>
+        <ion-item class="field">
+          <ion-input name="password" [(ngModel)]="password" label="Password" labelPlacement="stacked" type="password" autocomplete="current-password" minlength="6" required></ion-input>
+        </ion-item>
+        @if (errorMessage) {
+          <p class="form-message error">{{ errorMessage }}</p>
+        }
+        @if (successMessage) {
+          <p class="form-message success">{{ successMessage }}</p>
+        }
+        <ion-button type="submit" expand="block" [disabled]="loading || !authForm.valid">
+          @if (loading) {
+            <ion-spinner name="crescent"></ion-spinner>
+          }
+          @if (!loading) {
+            <span>{{ isRegister ? 'Create account' : 'Sign in' }}</span>
+          }
+        </ion-button>
+      </form>
+      @if (!isRegister) {
+        <button class="text-button" [disabled]="loading" (click)="resetPassword()">Forgot password?</button>
+      }
+      <div class="switch-auth">
+        <span>{{ isRegister ? 'Already have an account?' : 'New to CareFinder?' }}</span>
+        <button class="text-button" (click)="isRegister = !isRegister; errorMessage = ''; successMessage = ''">{{ isRegister ? 'Sign in' : 'Create an account' }}</button>
+      </div>
+      <p class="privacy-note"><ion-icon name="shield-checkmark-outline"></ion-icon> Your account is used only to sync saved facilities and profile settings.</p>
+    </section>
+  </div>
+</ion-content>

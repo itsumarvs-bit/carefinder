@@ -1,0 +1,78 @@
+.import-content { --background: #f5f8fb; }
+.import-shell { width: min(1120px, calc(100% - 36px)); margin: 26px auto 55px; }
+.page-heading, .preview-heading, .import-summary { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+.eyebrow { margin: 0 0 6px; color: #288f7d; font-size: 10px; font-weight: 800; letter-spacing: 1.3px; }
+.page-heading h1 { margin: 0; color: #21394d; font-size: 28px; letter-spacing: -.7px; }
+.page-heading p:last-child, .upload-card p, .preview-heading p, .import-summary p { margin: 6px 0 0; color: #788a97; font-size: 12px; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; color: #2778a9; font-size: 12px; text-decoration: none; }
+.warning-card, .upload-card, .preview-card, .import-card { margin-top: 16px; padding: 18px; border: 1px solid #e6edf1; border-radius: 14px; background: #fff; }
+.warning-card { display: flex; gap: 11px; border-color: #efdfb9; color: #775c27; background: #fffaf0; font-size: 12px; }
+.warning-card > ion-icon { flex: 0 0 auto; font-size: 21px; }
+.warning-card p { margin: 5px 0 0; line-height: 1.55; }
+.upload-card { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+.upload-card h2, .preview-heading h2, .import-summary h2 { margin: 0; color: #2b4558; font-size: 16px; }
+.upload-control input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+.upload-control span { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 9px; color: #fff; background: #277fa9; font-size: 12px; cursor: pointer; }
+.file-name { flex-basis: 100%; margin: 0 !important; color: #537182 !important; }
+.stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 14px; }
+.stats-grid article { display: flex; flex-direction: column; gap: 5px; padding: 13px; border: 1px solid #e8edf1; border-radius: 11px; background: white; }
+.stats-grid small { color: #83929b; font-size: 10px; }
+.stats-grid strong { color: #2b4b60; font-size: 20px; }
+.preview-card { padding: 0; overflow: hidden; }
+.preview-heading { padding: 18px; }
+.preview-heading p { max-width: 640px; font-size: 11px; }
+.preview-controls { display: flex; flex-wrap: wrap; justify-content: flex-end; }
+.preview-controls ion-button { font-size: 11px; }
+.filters { display: flex; gap: 9px; padding: 0 18px 13px; }
+.search-input { width: min(360px, 100%); min-height: 40px; padding: 0 11px; border: 1px solid #e5ebef; border-radius: 9px; color: #385467; background: #f9fbfc; font: inherit; font-size: 12px; }
+.filters ion-select, .row-editors ion-select { min-height: 38px; padding: 0 9px; border: 1px solid #e5ebef; border-radius: 8px; color: #587082; background: #fff; font-size: 11px; }
+.record-list { border-top: 1px solid #eef1f3; }
+.candidate { padding: 13px 18px; border-bottom: 1px solid #eef1f3; }
+.candidate.invalid { background: #fffafa; }
+.candidate.possible-duplicate { border-left: 3px solid #e2b44d; }
+.candidate-top { display: flex; align-items: center; gap: 11px; }
+.select-record { display: flex; align-self: flex-start; padding-top: 3px; }
+.candidate-main { flex: 1; min-width: 140px; }
+.candidate-main > strong, .candidate-main > small { display: block; }
+.candidate-main > strong { color: #3a5263; font-size: 12px; }
+.candidate-main > small { margin-top: 4px; color: #81909a; font-size: 10px; }
+.row-editors { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.row-editors ion-select { max-width: 205px; }
+.candidate-meta { display: flex; flex-wrap: wrap; gap: 5px 13px; margin: 8px 0 0 28px; color: #758894; font-size: 10px; }
+.candidate-meta span { overflow-wrap: anywhere; }
+.existing-tag, .error-tag, .warning-tag { display: inline-block; margin: 5px 5px 0 0; padding: 4px 6px; border-radius: 5px; font-size: 9px; }
+.existing-tag { color: #326b57; background: #eaf7f1; }
+.error-tag { color: #a14444; background: #fff1ef; }
+.warning-tag { color: #88672e; background: #fbf5e5; }
+.validation-errors, .validation-warnings { margin: 7px 0 0 28px; padding-left: 14px; font-size: 10px; line-height: 1.5; }
+.validation-errors { color: #a14444; }
+.validation-warnings { color: #87682e; }
+.empty-state, .loading-note { padding: 15px 18px; color: #788a97; font-size: 11px; }
+.loading-note { display: flex; align-items: center; gap: 8px; margin: 0; }
+.import-summary ion-button { --border-radius: 9px; font-size: 12px; }
+.geo-confirmation { display: flex; align-items: flex-start; gap: 9px; margin: 16px 0 0; color: #657d8b; font-size: 11px; line-height: 1.5; }
+.geo-confirmation input { margin-top: 2px; }
+.geo-confirmation label { cursor: pointer; }
+.blocked-note { margin: 10px 0 0; color: #a14444; font-size: 11px; }
+.progress-area { display: flex; align-items: center; gap: 10px; margin-top: 13px; color: #6d828f; font-size: 10px; }
+.progress-area progress { flex: 1; height: 8px; accent-color: #288f7d; }
+.results { margin-top: 15px; padding: 13px; border-radius: 9px; background: #f7fafb; }
+.results h3 { margin: 0 0 9px; color: #344f62; font-size: 13px; }
+.result-counts { display: flex; flex-wrap: wrap; gap: 7px; }
+.result-counts span { padding: 6px 8px; border: 1px solid #e7edf0; border-radius: 6px; color: #70838f; background: white; font-size: 10px; }
+.result-counts strong { margin-left: 4px; color: #2d566e; }
+.error-message, .batch-error { color: #a14444; font-size: 11px; }
+.error-message { display: flex; align-items: flex-start; gap: 7px; padding: 11px; border-radius: 8px; background: #fff1ef; }
+.batch-error { margin: 8px 0 0; overflow-wrap: anywhere; }
+@media(max-width: 760px) {
+  .import-shell { width: calc(100% - 24px); margin-top: 16px; }
+  .page-heading, .preview-heading, .import-summary { align-items: flex-start; flex-direction: column; }
+  .page-heading h1 { font-size: 23px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .filters { flex-direction: column; }
+  .search-input { width: 100%; }
+  .candidate-top { align-items: flex-start; flex-wrap: wrap; }
+  .candidate-main { min-width: calc(100% - 50px); }
+  .row-editors { width: 100%; justify-content: flex-start; padding-left: 28px; }
+  .row-editors ion-select { flex: 1; max-width: none; }
+}

@@ -1,0 +1,57 @@
+{
+  "demo-hospital": {
+    "name": "Sample Community Hospital",
+    "category": "hospital",
+    "description": "DEMONSTRATION ONLY. Replace with facility information verified by your organization.",
+    "address": "100 Sample Road, Barangay Central",
+    "city": "Sample City",
+    "province": "Sample Province",
+    "contactNumber": "+63 2 8000 0001",
+    "services": ["Emergency care", "Outpatient consultation"],
+    "latitude": 14.5995,
+    "longitude": 120.9842,
+    "isVerified": false,
+    "isActive": true
+  },
+  "demo-clinic": {
+    "name": "Sample Family Clinic",
+    "category": "clinic",
+    "description": "DEMONSTRATION ONLY. Facility details and coordinates are illustrative.",
+    "address": "25 Example Street, Barangay North",
+    "city": "Sample City",
+    "province": "Sample Province",
+    "contactNumber": "+63 2 8000 0002",
+    "services": ["Primary care", "Health screening"],
+    "latitude": 14.606,
+    "longitude": 120.99,
+    "isVerified": false,
+    "isActive": true
+  },
+  "demo-pharmacy": {
+    "name": "Sample Neighborhood Pharmacy",
+    "category": "pharmacy",
+    "description": "DEMONSTRATION ONLY. Not a real-world facility listing.",
+    "address": "8 Demo Avenue, Barangay South",
+    "city": "Sample City",
+    "province": "Sample Province",
+    "contactNumber": "+63 2 8000 0003",
+    "services": ["Prescription dispensing", "Over-the-counter medicines"],
+    "latitude": 14.593,
+    "longitude": 120.978,
+    "isVerified": false,
+    "isActive": true
+  },
+  "demo-health-center": {
+    "name": "Sample Barangay Health Center",
+    "category": "health_center",
+    "description": "DEMONSTRATION ONLY. Replace with locally validated facility information.",
+    "address": "3 Community Lane, Barangay West",
+    "city": "Sample City",
+    "province": "Sample Province",
+    "services": ["Community health services", "Vaccination information"],
+    "latitude": 14.602,
+    "longitude": 120.972,
+    "isVerified": false,
+    "isActive": true
+  }
+}

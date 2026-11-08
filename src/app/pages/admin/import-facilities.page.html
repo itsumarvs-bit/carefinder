@@ -1,0 +1,144 @@
+<ion-content class="import-content">
+  <main class="import-shell">
+    <header class="page-heading">
+      <div>
+        <p class="eyebrow">AUTHORIZED ADMINISTRATORS</p>
+        <h1>Import Healthcare Facilities</h1>
+        <p>Preview and validate OSM facility data before adding records to the public directory.</p>
+      </div>
+      <a routerLink="/admin" class="back-link"><ion-icon name="arrow-back-outline"></ion-icon> Facility management</a>
+    </header>
+
+    <section class="warning-card" role="note">
+      <ion-icon name="alert-circle-outline"></ion-icon>
+      <div><strong>Geographic validation is required.</strong>
+        <p>The supplied MIMAROPA extract used approximate province-area windows, not authoritative boundaries. Review every selected record against an authoritative MIMAROPA administrative boundary. Records marked uncertain remain flagged; records marked outside cannot be imported. Coordinates are never changed.</p>
+      </div>
+    </section>
+
+    @if (errorMessage) {
+      <p class="error-message"><ion-icon name="warning-outline"></ion-icon>{{ errorMessage }}</p>
+    }
+
+    <section class="upload-card">
+      <div><h2>Upload source data</h2><p>CSV or JSON with OSM type, ID, category, coordinates, source URL, and attribution.</p></div>
+      <label class="upload-control">
+        <input type="file" accept=".csv,.json,text/csv,application/json" (change)="onFileSelected($event)">
+        <span><ion-icon name="cloud-upload-outline"></ion-icon> Choose CSV or JSON</span>
+      </label>
+      @if (fileName) { <p class="file-name">{{ fileName }} · {{ candidates.length }} records</p> }
+    </section>
+
+    @if (candidates.length) {
+      <section class="stats-grid" aria-label="Dataset validation counts">
+        <article><small>Valid unique</small><strong>{{ validCount }}</strong></article>
+        <article><small>Existing selected</small><strong>{{ existingCount }}</strong></article>
+        <article><small>Duplicate IDs</small><strong>{{ duplicateCount }}</strong></article>
+        <article><small>Invalid</small><strong>{{ invalidCount }}</strong></article>
+        <article><small>Potential duplicate records</small><strong>{{ potentialDuplicateCount }}</strong></article>
+      </section>
+
+      <section class="preview-card">
+        <div class="preview-heading">
+          <div><h2>Preview and review</h2><p>Missing names are warnings, not errors. Existing records are matched by OSM identity, never name alone.</p></div>
+          <div class="preview-controls">
+            <ion-button fill="outline" size="small" (click)="selectAllValid()">Select all valid</ion-button>
+            <ion-button fill="clear" size="small" (click)="deselectAll()">Deselect all</ion-button>
+            <ion-button fill="outline" size="small" (click)="confirmAllGeographicReviews()">Confirm all</ion-button>
+          </div>
+        </div>
+
+        <div class="filters">
+          <input class="search-input" type="search" [(ngModel)]="search" [ngModelOptions]="{standalone:true}" placeholder="Search name, OSM ID, address…" aria-label="Search imported records">
+          <ion-select [(ngModel)]="categoryFilter" [ngModelOptions]="{standalone:true}" aria-label="Filter by category" interface="popover">
+            <ion-select-option value="all">All categories</ion-select-option>
+            @for (category of categoryOptions; track category) {
+              <ion-select-option [value]="category">{{ categoryLabels[category] }}</ion-select-option>
+            }
+          </ion-select>
+        </div>
+
+        @if (loadingExisting) { <p class="loading-note"><ion-spinner name="crescent"></ion-spinner> Checking existing Firestore records…</p> }
+        @if (!loadingExisting && !existingLoaded) { <p class="loading-note">Existing records could not be checked. Import is disabled until the check succeeds.</p> }
+        <div class="record-list">
+          @for (item of filteredCandidates; track item.index) {
+            <article class="candidate" [class.invalid]="candidateErrors(item.candidate).length" [class.possible-duplicate]="isPotentialDuplicate(item.index)">
+              <div class="candidate-top">
+                <label class="select-record">
+                  <input type="checkbox" [(ngModel)]="item.candidate.selected" [ngModelOptions]="{standalone:true}" [attr.aria-label]="'Select OSM ' + item.candidate.osmType + ' ' + item.candidate.osmId">
+                </label>
+                <div class="candidate-main">
+                  <strong>{{ item.candidate.name || 'Name not provided' }}</strong>
+                  <small>{{ item.candidate.osmType || 'Unknown type' }} {{ item.candidate.osmId || '—' }} · {{ item.candidate.province || item.candidate.region || 'Area not provided' }}</small>
+                  @if (existingIds.has(documentId(item.candidate))) { <span class="existing-tag">Already in Firestore — will not be overwritten</span> }
+                  @if (duplicateIndices.has(item.index)) { <span class="error-tag">Repeated OSM identifier in this file</span> }
+                  @if (isPotentialDuplicate(item.index)) { <span class="warning-tag">Potential nearby duplicate — review; not automatically matched</span> }
+                </div>
+                <div class="row-editors">
+                  <ion-select [(ngModel)]="item.candidate.category" [ngModelOptions]="{standalone:true}" (ngModelChange)="categoryChanged()" aria-label="Normalized facility category" interface="popover">
+                    <ion-select-option value="">Choose category</ion-select-option>
+                    @for (category of categoryOptions; track category) {
+                      <ion-select-option [value]="category">{{ categoryLabels[category] }}</ion-select-option>
+                    }
+                  </ion-select>
+                  <ion-select [(ngModel)]="item.candidate.geographicReview" [ngModelOptions]="{standalone:true}" aria-label="Geographic review status" interface="popover">
+                    @for (option of reviewOptions; track option.value) {
+                      <ion-select-option [value]="option.value">{{ option.label }}</ion-select-option>
+                    }
+                  </ion-select>
+                </div>
+              </div>
+              <div class="candidate-meta">
+                <span>{{ item.candidate.latitude ?? 'No latitude' }}, {{ item.candidate.longitude ?? 'no longitude' }}</span>
+                <span>Source: {{ item.candidate.source || 'not provided' }}</span>
+                <span>{{ item.candidate.address || 'Address not provided' }}</span>
+              </div>
+              @if (candidateErrors(item.candidate).length) {
+                <ul class="validation-errors">@for (issue of candidateErrors(item.candidate); track issue) { <li>{{ issue }}</li> }</ul>
+              }
+              @if (candidateWarnings(item.candidate).length) {
+                <ul class="validation-warnings">@for (warning of candidateWarnings(item.candidate); track warning) { <li>{{ warning }}</li> }</ul>
+              }
+            </article>
+          }
+          @if (!filteredCandidates.length) { <p class="empty-state">No records match these filters.</p> }
+        </div>
+      </section>
+
+      <section class="import-card">
+        <div class="import-summary">
+          <div><h2>Import selected records</h2><p>{{ selectedCandidates.length }} selected · {{ newCount }} new · {{ existingCount }} existing</p></div>
+          <ion-button [disabled]="!canImport" (click)="importSelected()">
+            @if (importing) { <ion-spinner name="crescent"></ion-spinner> }
+            @if (!importing) { <ion-icon slot="start" name="cloud-upload-outline"></ion-icon> }
+            {{ importing ? 'Importing…' : 'Import selected' }}
+          </ion-button>
+        </div>
+        <p class="geo-confirmation">
+          <input type="checkbox" id="boundary-confirm" [(ngModel)]="boundaryValidationConfirmed" [ngModelOptions]="{standalone:true}">
+          <label for="boundary-confirm">I checked the selected records against an authoritative MIMAROPA boundary. Geographic decisions above are recorded with each facility.</label>
+        </p>
+        @if (blockedSelectionMessage) { <p class="blocked-note">{{ blockedSelectionMessage }}</p> }
+        @if (importing || progressTotal > 0) {
+          <div class="progress-area">
+            <progress [value]="progressCompleted" [max]="progressTotal || 1"></progress>
+            <span>{{ progressCompleted }} / {{ progressTotal }} writes processed</span>
+          </div>
+        }
+        @if (summary; as result) {
+          <div class="results" aria-live="polite">
+            <h3>Import results</h3>
+            <div class="result-counts">
+              <span>New records <strong>{{ result.newRecords }}</strong></span>
+              <span>Existing records <strong>{{ result.existingRecords }}</strong></span>
+              <span>Duplicate records <strong>{{ result.duplicateRecords }}</strong></span>
+              <span>Invalid records <strong>{{ result.invalidRecords }}</strong></span>
+              <span>Failed imports <strong>{{ result.failedImports }}</strong></span>
+            </div>
+            @for (batchError of result.batchErrors; track batchError) { <p class="batch-error">{{ batchError }}</p> }
+          </div>
+        }
+      </section>
+    }
+  </main>
+</ion-content>

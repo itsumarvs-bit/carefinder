@@ -1,0 +1,29 @@
+<ion-content class="saved-content">
+  <main class="saved-shell">
+    <p class="eyebrow">YOUR SHORTLIST</p><h1>Saved facilities</h1><p class="intro">Keep the healthcare services you may need close at hand.</p>
+    @if (saved$ | async; as saved) {
+      @if (saved.length) {
+        <div class="saved-list">
+          @for (facility of saved; track facility) {
+            <article class="saved-card">
+              <a class="saved-main" [routerLink]="['/facility', facility.id]">
+                <span class="facility-icon"><ion-icon name="medkit-outline"></ion-icon></span>
+                <span><strong>{{ facility.name || 'Name not provided' }}</strong><small>{{ facility.address || 'Address not provided' }}@if (facility.city) {
+                , {{ facility.city }}
+              }</small></span>
+            </a>
+            <button class="remove-button" [attr.aria-label]="'Remove ' + (facility.name || 'facility') + ' from saved facilities'" (click)="remove(facility.id)"><ion-icon name="heart"></ion-icon></button>
+          </article>
+        }
+      </div>
+    }
+    @if (!saved.length) {
+      <div class="empty">
+        <span><ion-icon name="heart-outline"></ion-icon></span><h2>No saved facilities yet</h2>
+        <p>Tap the heart on a facility to save it here. Your list syncs with your account.</p>
+        <ion-button routerLink="/home">Explore facilities</ion-button>
+      </div>
+    }
+  }
+</main>
+</ion-content>

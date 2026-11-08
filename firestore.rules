@@ -1,0 +1,141 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    function validCategory(category) {
+      return category in ['hospital', 'clinic', 'pharmacy', 'health_center'];
+    }
+
+    function validCoordinates(data) {
+      return (!('latitude' in data) && !('longitude' in data))
+        || (
+          'latitude' in data && 'longitude' in data
+          && data.latitude is number && data.latitude >= -90 && data.latitude <= 90
+          && data.longitude is number && data.longitude >= -180 && data.longitude <= 180
+        );
+    }
+
+    function validOsmFacility(data, facilityId) {
+      return data.source == 'openstreetmap'
+        && data.osmType in ['node', 'way', 'relation']
+        && data.osmId is string
+        && data.osmId.matches('^[0-9]+$')
+        && facilityId == 'osm_' + data.osmType + '_' + data.osmId
+        && data.sourceData is map
+        && data.sourceData.keys().hasAll([
+          'osmType', 'osmId', 'sourceUrl', 'originalCoordinates', 'originalName', 'originalAddress',
+          'originalCategory', 'attribution', 'datasetProvenance'
+        ])
+        && data.sourceData.keys().hasOnly([
+          'osmType', 'osmId', 'sourceUrl', 'rawTags', 'originalCoordinates', 'originalName',
+          'originalAddress', 'originalCity', 'originalProvince', 'originalRegion',
+          'originalContactNumber', 'originalWebsite', 'originalOpeningHours', 'originalServices',
+          'originalCategory', 'attribution', 'datasetProvenance'
+        ])
+        && data.sourceData.osmType == data.osmType
+        && data.sourceData.osmId == data.osmId
+        && data.sourceData.sourceUrl == 'https://www.openstreetmap.org/' + data.osmType + '/' + data.osmId
+        && data.sourceData.originalCoordinates is map
+        && data.sourceData.originalCoordinates.keys().hasAll(['latitude', 'longitude'])
+        && data.sourceData.originalCoordinates.keys().hasOnly(['latitude', 'longitude'])
+        && data.sourceData.originalCoordinates.latitude is number
+        && data.sourceData.originalCoordinates.latitude >= -90
+        && data.sourceData.originalCoordinates.latitude <= 90
+        && data.sourceData.originalCoordinates.longitude is number
+        && data.sourceData.originalCoordinates.longitude >= -180
+        && data.sourceData.originalCoordinates.longitude <= 180
+        && data.sourceData.originalName is string
+        && data.sourceData.originalAddress is string
+        && data.sourceData.originalCategory is string
+        && data.sourceData.attribution is string
+        && data.sourceData.attribution.size() > 0
+        && data.sourceData.datasetProvenance is map
+        && data.sourceData.datasetProvenance.keys().hasOnly([
+          'datasetName', 'datasetProvider', 'datasetFile', 'datasetLicense',
+          'coverageRequested', 'coverageActual', 'regionFilterMethod'
+        ])
+        && (!('rawTags' in data.sourceData) || data.sourceData.rawTags is map)
+        && (!('originalServices' in data.sourceData) || data.sourceData.originalServices is list)
+        && data.geographicReview in ['confirmed', 'uncertain'];
+    }
+
+    function validFacility(data, facilityId) {
+      return data.keys().hasAll(['name', 'category', 'address', 'isVerified', 'isActive', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'name', 'slug', 'category', 'description', 'address', 'barangay', 'city', 'province', 'region',
+          'contactNumber', 'email', 'website', 'latitude', 'longitude', 'imageUrl', 'services', 'amenities',
+          'operatingHours', 'timeZone', 'isVerified', 'isActive', 'createdAt', 'updatedAt',
+          'source', 'osmType', 'osmId', 'sourceData', 'geographicReview'
+        ])
+        && data.name is string && data.name.size() <= 200
+        && validCategory(data.category)
+        && data.address is string && data.address.size() <= 500
+        && ((!('source' in data) && data.name.size() > 0 && data.address.size() > 0)
+          || ('source' in data && validOsmFacility(data, facilityId)))
+        && data.isVerified is bool && data.isActive is bool
+        && data.createdAt is timestamp && data.updatedAt is timestamp
+        && validCoordinates(data);
+    }
+
+    match /facilities/{facilityId} {
+      allow read: if isAdmin() || resource.data.isActive == true;
+      allow create: if isAdmin() && validFacility(request.resource.data, facilityId)
+        && (!('source' in request.resource.data)
+          || (!request.resource.data.isVerified && request.resource.data.isActive
+            && request.resource.data.sourceData.originalCoordinates.latitude == request.resource.data.latitude
+            && request.resource.data.sourceData.originalCoordinates.longitude == request.resource.data.longitude))
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if isAdmin() && validFacility(request.resource.data, facilityId)
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.updatedAt == request.time
+        && (!('source' in resource.data && resource.data.source == 'openstreetmap')
+          || !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'source', 'osmType', 'osmId', 'sourceData', 'geographicReview'
+          ]));
+      allow delete: if isAdmin();
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid) || isAdmin();
+      allow create: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['uid', 'displayName', 'email', 'role', 'createdAt', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['uid', 'displayName', 'email', 'role', 'createdAt', 'updatedAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.role == 'user'
+        && request.resource.data.displayName is string
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time;
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName', 'email', 'updatedAt'])
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.updatedAt == request.time
+        && request.resource.data.displayName is string
+        && request.resource.data.email == request.auth.token.email;
+      allow delete: if false;
+
+      match /favorites/{facilityId} {
+        allow read: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['facilityId', 'createdAt'])
+          && request.resource.data.facilityId == facilityId
+          && request.resource.data.createdAt == request.time;
+        allow update: if false;
+        allow delete: if isOwner(uid);
+      }
+    }
+  }
+}

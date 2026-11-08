@@ -1,0 +1,91 @@
+<ion-content class="admin-content">
+  <main class="admin-shell">
+    <div class="admin-heading"><div><p class="eyebrow">AUTHORIZED ADMINISTRATORS</p><h1>Facility management</h1><p>Maintain accurate, current information in the public directory.</p></div><div><ion-button fill="outline" routerLink="/admin/import"><ion-icon slot="start" name="cloud-upload-outline"></ion-icon>Import facilities</ion-button><ion-button (click)="newFacility()"><ion-icon slot="start" name="add-outline"></ion-icon>Add facility</ion-button></div></div>
+    <div class="admin-stats"><article><small>Total records</small><strong>{{ records.length }}</strong></article><article><small>Active listings</small><strong>{{ activeCount }}</strong></article><article><small>Verified</small><strong>{{ verifiedCount }}</strong></article><article><small>Unverified</small><strong>{{ records.length - verifiedCount }}</strong></article></div>
+    @if (errorMessage) {
+      <p class="error-message"><ion-icon name="warning-outline"></ion-icon>{{ errorMessage }}</p>
+    }
+
+    <section class="editor-card">
+      <div class="editor-title"><div><h2>{{ editingId ? 'Edit facility' : 'Add a facility' }}</h2><p>Only authorized admins can save changes.</p></div>@if (editingId) {
+      <button class="cancel-edit" (click)="newFacility()">Cancel edit</button>
+    }</div>
+    <form #facilityForm="ngForm" (ngSubmit)="submit()">
+      <div class="form-grid">
+        <ion-item class="field"><ion-input name="name" label="Facility name *" labelPlacement="stacked" [(ngModel)]="form.name" required></ion-input></ion-item>
+        <ion-item class="field"><ion-select name="category" label="Category *" labelPlacement="stacked" [(ngModel)]="form.category" interface="popover">@for (category of categoryOptions; track category) {
+          <ion-select-option [value]="category">{{ categoryLabels[category] }}</ion-select-option>
+        }</ion-select></ion-item>
+        <ion-item class="field span-two"><ion-textarea name="description" label="Description" labelPlacement="stacked" [(ngModel)]="form.description" rows="2" autoGrow></ion-textarea></ion-item>
+        <ion-item class="field span-two"><ion-input name="address" label="Street address *" labelPlacement="stacked" [(ngModel)]="form.address" required></ion-input></ion-item>
+        <ion-item class="field"><ion-input name="barangay" label="Barangay" labelPlacement="stacked" [(ngModel)]="form.barangay"></ion-input></ion-item>
+        <ion-item class="field"><ion-input name="city" label="City / municipality" labelPlacement="stacked" [(ngModel)]="form.city"></ion-input></ion-item>
+        <ion-item class="field"><ion-input name="province" label="Province / region" labelPlacement="stacked" [(ngModel)]="form.province"></ion-input></ion-item>
+        <ion-item class="field"><ion-input name="phone" label="Contact number" labelPlacement="stacked" [(ngModel)]="form.contactNumber" type="tel"></ion-input></ion-item>
+        <ion-item class="field"><ion-input name="email" label="Email" labelPlacement="stacked" [(ngModel)]="form.email" type="email"></ion-input></ion-item>
+        <ion-item class="field"><ion-input name="website" label="Website" labelPlacement="stacked" [(ngModel)]="form.website" type="url"></ion-input></ion-item>
+        <ion-item class="field"><ion-input name="latitude" label="Latitude" labelPlacement="stacked" [(ngModel)]="form.latitude" type="number" min="-90" max="90"></ion-input></ion-item>
+        <ion-item class="field"><ion-input name="longitude" label="Longitude" labelPlacement="stacked" [(ngModel)]="form.longitude" type="number" min="-180" max="180"></ion-input></ion-item>
+        <ion-item class="field"><ion-input name="timezone" label="IANA time zone" labelPlacement="stacked" [(ngModel)]="form.timeZone" placeholder="Asia/Manila"></ion-input></ion-item>
+        <ion-item class="field span-two"><ion-input name="imageUrl" label="Image URL (optional)" labelPlacement="stacked" [(ngModel)]="form.imageUrl" type="url"></ion-input></ion-item>
+        <ion-item class="field span-two"><ion-input name="services" label="Services (comma separated)" labelPlacement="stacked" [(ngModel)]="form.services"></ion-input></ion-item>
+        <ion-item class="field span-two"><ion-input name="amenities" label="Amenities (comma separated)" labelPlacement="stacked" [(ngModel)]="form.amenities"></ion-input></ion-item>
+        <ion-item class="field span-two"><ion-textarea name="hours" label="Operating hours JSON" labelPlacement="stacked" [(ngModel)]="hoursJson" rows="5" placeholder='{"monday":{"open":"09:00","close":"17:00","closed":false}}'></ion-textarea></ion-item>
+      </div>
+      <div class="category-stats">@for (category of categoryOptions; track category) {
+        <span>{{ categoryLabels[category] }} <strong>{{ categoryCount(category) }}</strong></span>
+      }</div>
+      <p class="hours-help">Use each weekday as a key. Time uses 24-hour HH:mm; set closed to true for closed days. Include every day you can confirm. Example: <code>&#123;"monday":&#123;"open":"09:00","close":"17:00","closed":false&#125;&#125;</code></p>
+      <div class="switches"><ion-item lines="none"><ion-checkbox name="isVerified" [(ngModel)]="form.isVerified">Verified</ion-checkbox></ion-item><ion-item lines="none"><ion-checkbox name="isActive" [(ngModel)]="form.isActive">Active listing</ion-checkbox></ion-item></div>
+      <div class="editor-actions"><ion-button type="submit" [disabled]="saving || !facilityForm.valid">@if (saving) {
+        <ion-spinner name="crescent"></ion-spinner>
+        }@if (!saving) {
+        <span>{{ editingId ? 'Save changes' : 'Create facility' }}</span>
+        }</ion-button><ion-button fill="clear" type="button" (click)="newFacility()">Clear form</ion-button></div>
+      </form>
+    </section>
+
+    <section class="records-section">
+      <div class="records-heading"><div><h2>Facility records</h2><p>Search and review public directory listings.</p></div><div class="record-filters"><ion-searchbar [(ngModel)]="search" placeholder="Search records" aria-label="Search facility records"></ion-searchbar><ion-select [(ngModel)]="categoryFilter" aria-label="Filter records by category" interface="popover"><ion-select-option value="all">All categories</ion-select-option>@for (category of categoryOptions; track category) {
+      <ion-select-option [value]="category">{{ categoryLabels[category] }}</ion-select-option>
+    }</ion-select></div></div>
+    @if (loading) {
+      <div class="loading-state"><ion-spinner></ion-spinner><span>Loading facility records…</span></div>
+    }
+    @if (!loading) {
+      <div class="record-list">
+        @for (record of filteredRecords; track record) {
+          <article class="record">
+            <div class="record-icon"><ion-icon name="medkit-outline"></ion-icon></div>
+            <div class="record-copy"><strong>{{ record.name || 'Name not provided' }}</strong><small>{{ categoryLabels[record.category] }} · {{ record.address || 'Address not provided' }}@if (record.city) {
+            , {{ record.city }}
+            }</small><div class="record-tags"><span [class.inactive]="!record.isActive">{{ record.isActive ? 'Active' : 'Inactive' }}</span><span [class.unverified]="!record.isVerified">{{ record.isVerified ? 'Verified' : 'Unverified' }}</span></div></div>
+            <div class="record-actions"><button (click)="view(record)" [attr.aria-label]="'View ' + record.name"><ion-icon name="eye-outline"></ion-icon></button><button (click)="edit(record)" [attr.aria-label]="'Edit ' + record.name"><ion-icon name="create-outline"></ion-icon></button><button class="delete" (click)="delete(record)" [attr.aria-label]="'Delete ' + record.name"><ion-icon name="trash-outline"></ion-icon></button></div>
+            @if (selectedRecord?.id === record.id) {
+              <div class="record-detail">
+                <p>{{ record.description || 'No description provided.' }}</p>
+                @if (record.contactNumber) {
+                  <span>Phone: {{ record.contactNumber }}</span>
+                }
+                @if (record.email) {
+                  <span>Email: {{ record.email }}</span>
+                }
+                @if (record.services?.length) {
+                  <span>Services: {{ record.services.join(', ') }}</span>
+                }
+                @if (record.latitude !== undefined && record.longitude !== undefined) {
+                  <span>Coordinates: {{ record.latitude }}, {{ record.longitude }}</span>
+                }
+                <span>Hours: {{ record.operatingHours ? (record.operatingHours | json) : 'Unavailable' }}</span>
+              </div>
+            }
+          </article>
+        }
+        @if (!filteredRecords.length) {
+          <div class="records-empty"><p>{{ search ? 'No records match your search.' : 'No facility records yet.' }}</p></div>
+        }
+      </div>
+    }
+  </section>
+</main>
+</ion-content>

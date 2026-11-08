@@ -1,0 +1,31 @@
+<ion-content class="profile-content">
+  <main class="profile-shell">
+    @if (user$ | async; as user) {
+      <section class="profile-hero">
+        <span class="avatar"><ion-icon name="person-outline"></ion-icon></span>
+        <div><p class="eyebrow">YOUR CAREFINDER ACCOUNT</p><h1>{{ user.displayName || 'Your profile' }}</h1><p>{{ user.email }}</p></div>
+      </section>
+      <section class="profile-card">
+        <h2>Basic information</h2>
+        <ion-item class="field"><ion-input label="Name" labelPlacement="stacked" [(ngModel)]="displayName"></ion-input></ion-item>
+        <ion-item class="field"><ion-input label="Email" labelPlacement="stacked" [value]="user.email || ''" readonly></ion-input></ion-item>
+        <ion-button class="save-button" [disabled]="saving" (click)="saveProfile()">@if (saving) {
+          <ion-spinner name="crescent"></ion-spinner>
+          }@if (!saving) {
+          <span>Save profile</span>
+        }</ion-button>
+      </section>
+      <section class="profile-card shortcuts">
+        <h2>Shortcuts</h2>
+        <a routerLink="/favorites"><span><ion-icon name="heart-outline"></ion-icon></span><div><strong>Saved facilities</strong><small>View your synced favorites</small></div><ion-icon name="chevron-forward-outline"></ion-icon></a>
+        @if (isAdmin$ | async) {
+          <a routerLink="/admin"><span><ion-icon name="settings-outline"></ion-icon></span><div><strong>Admin dashboard</strong><small>Manage facility records</small></div><ion-icon name="chevron-forward-outline"></ion-icon></a>
+        }
+      </section>
+      <ion-button class="signout-button" fill="outline" expand="block" (click)="signOut()"><ion-icon slot="start" name="log-out-outline"></ion-icon>Sign out</ion-button>
+      <p class="privacy-note"><ion-icon name="shield-checkmark-outline"></ion-icon> CareFinder does not collect or store medical records or diagnoses.</p>
+    } @else {
+      <section class="guest-card"><span class="avatar"><ion-icon name="person-outline"></ion-icon></span><p class="eyebrow">YOUR CAREFINDER ACCOUNT</p><h1>Browse as a guest</h1><p>Create an account to save facilities and sync your list across devices.</p><ion-button routerLink="/auth">Sign in or register</ion-button></section>
+    }
+  </main>
+</ion-content>

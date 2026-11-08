@@ -1,0 +1,7 @@
+{
+  "name": "carefinder",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}

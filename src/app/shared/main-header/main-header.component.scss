@@ -1,0 +1,52 @@
+:host {
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: block;
+}
+
+.topbar {
+  --background: #fff;
+  --min-height: 68px;
+  padding: 0 max(22px, calc((100vw - 1160px) / 2));
+  border-bottom: 1px solid #edf1f5;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #19364d;
+  font-size: 20px;
+  font-weight: 800;
+  text-decoration: none;
+  letter-spacing: -0.7px;
+}
+
+.brand-light {
+  color: #1976d2;
+}
+
+.brand-mark {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 11px;
+  color: white;
+  background: #1976d2;
+  font-size: 19px;
+}
+
+.profile-button {
+  --color: #31516a;
+  font-size: 27px;
+}
+
+@media (max-width: 560px) {
+  .topbar {
+    padding: 0 12px;
+  }
+}

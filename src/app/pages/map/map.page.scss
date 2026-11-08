@@ -1,0 +1,31 @@
+.map-content { --background: #f5f8fb; }
+.map-shell { width: min(1200px, calc(100% - 36px)); margin: 24px auto 48px; }
+.map-heading { display: flex; justify-content: space-between; align-items: center; gap: 15px; }
+.eyebrow { margin: 0 0 6px; color: #2c9481; font-size: 10px; font-weight: 800; letter-spacing: 1.3px; }
+h1 { margin: 0; color: #20394d; font-size: 27px; letter-spacing: -.6px; }
+.map-heading ion-button { --border-radius: 9px; font-size: 12px; }
+.location-message { display: flex; gap: 6px; align-items: center; margin: 13px 0; color: #758894; font-size: 12px; }
+.location-message ion-icon { color: #3286b7; }
+.map-layout { display: grid; height: min(68vh, 650px); min-height: 430px; grid-template-columns: minmax(0, 1fr) 320px; overflow: hidden; border: 1px solid #e3e9ed; border-radius: 15px; background: white; }
+.map-host { z-index: 0; min-width: 0; background: #e9f0f3; }
+.facility-list { overflow: auto; padding: 15px; border-left: 1px solid #e8edf1; }
+.facility-list h2 { display: flex; justify-content: space-between; margin: 0; color: #2b4457; font-size: 15px; }
+.facility-list h2 span { padding: 3px 7px; border-radius: 9px; color: #277bb0; background: #edf6fb; font-size: 10px; }
+.map-hint { margin: 7px 0 11px; color: #8a979f; font-size: 10px; line-height: 1.45; }
+.map-facility { display: flex; width: 100%; align-items: flex-start; gap: 9px; padding: 11px 7px; border: 0; border-top: 1px solid #eff2f4; background: transparent; text-align: left; cursor: pointer; }
+.map-facility.selected { border-radius: 9px; background: #eef7fb; }
+.pin { display: grid; flex: 0 0 auto; width: 30px; height: 30px; place-items: center; border-radius: 9px; color: #238c7c; background: #e9f6f1; }
+.map-facility-copy { min-width: 0; }
+.map-facility-copy strong, .map-facility-copy small, .map-facility-copy em { display: block; }
+.map-facility-copy strong { overflow: hidden; color: #3a5364; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.map-facility-copy small { overflow: hidden; margin-top: 4px; color: #87959d; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.map-facility-copy em { margin-top: 4px; color: #2582b2; font-size: 9px; font-style: normal; }
+.list-empty { padding: 20px 5px; color: #87959d; font-size: 11px; line-height: 1.5; }
+.selected-card { display: flex; align-items: center; gap: 16px; margin-top: 13px; padding: 14px 16px; border: 1px solid #e5edf2; border-radius: 12px; background: #fff; }
+.selected-card > div { flex: 1; }
+.selected-card small { color: #2386b7; font-size: 10px; font-weight: 700; }
+.selected-card h2 { margin: 3px 0; color: #2b4457; font-size: 14px; }
+.selected-card p { margin: 0; color: #87949d; font-size: 10px; }
+.selected-card a { display: inline-flex; align-items: center; gap: 5px; color: #1976d2; font-size: 11px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.map-disclaimer { margin: 12px 0; color: #8b979e; font-size: 10px; line-height: 1.5; }
+@media(max-width: 760px) { .map-shell { width: calc(100% - 26px); margin-top: 16px; } .map-layout { height: auto; min-height: 0; grid-template-columns: 1fr; } .map-host { height: 48vh; min-height: 320px; } .facility-list { max-height: 250px; border-top: 1px solid #e8edf1; border-left: 0; } .selected-card { flex-wrap: wrap; gap: 10px; } .selected-card > div { flex-basis: 100%; } }
