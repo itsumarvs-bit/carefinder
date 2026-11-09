@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { FirebaseApp, initializeApp } from 'firebase/app';
 import { Auth, getAuth } from 'firebase/auth';
-import { Firestore, getFirestore } from 'firebase/firestore';
+import { Firestore, initializeFirestore } from 'firebase/firestore';
 import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
@@ -20,7 +20,9 @@ export class FirebaseService {
   readonly auth: Auth | null = this.app ? getAuth(this.app) : null;
 
   readonly firestore: Firestore | null = this.app
-    ? getFirestore(this.app)
+    ? initializeFirestore(this.app, {
+        experimentalForceLongPolling: true,
+      })
     : null;
 
   constructor() {
@@ -30,5 +32,6 @@ export class FirebaseService {
       environment.firebase.projectId,
     );
     console.log('[CareFinder] Firestore initialized:', Boolean(this.firestore));
+    console.log('[CareFinder] Firestore transport: Long Polling');
   }
 }
