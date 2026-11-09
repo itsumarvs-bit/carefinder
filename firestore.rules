@@ -26,6 +26,39 @@ service cloud.firestore {
         );
     }
 
+    function validImageUrl(url) {
+        return url is string && url.size() <= 2048;
+    }
+
+    function validImageUrls(urls) {
+      return urls is list && urls.size() <= 5
+        && (urls.size() < 1 || validImageUrl(urls[0]))
+        && (urls.size() < 2 || validImageUrl(urls[1]))
+        && (urls.size() < 3 || validImageUrl(urls[2]))
+        && (urls.size() < 4 || validImageUrl(urls[3]))
+        && (urls.size() < 5 || validImageUrl(urls[4]));
+    }
+
+    function validFacilityPhoto(photo) {
+      return photo is map
+        && photo.keys().hasAll(['secureUrl'])
+        && photo.keys().hasOnly(['secureUrl', 'publicId'])
+        && validImageUrl(photo.secureUrl)
+        && photo.secureUrl.matches('^https://.*')
+        && (!('publicId' in photo) || (
+          photo.publicId is string && photo.publicId.size() > 0 && photo.publicId.size() <= 255
+        ));
+    }
+
+    function validFacilityPhotos(photos) {
+      return photos is list && photos.size() <= 5
+        && (photos.size() < 1 || validFacilityPhoto(photos[0]))
+        && (photos.size() < 2 || validFacilityPhoto(photos[1]))
+        && (photos.size() < 3 || validFacilityPhoto(photos[2]))
+        && (photos.size() < 4 || validFacilityPhoto(photos[3]))
+        && (photos.size() < 5 || validFacilityPhoto(photos[4]));
+    }
+
     function validOsmFacility(data, facilityId) {
       return data.source == 'openstreetmap'
         && data.osmType in ['node', 'way', 'relation']
@@ -74,7 +107,7 @@ service cloud.firestore {
       return data.keys().hasAll(['name', 'category', 'address', 'isVerified', 'isActive', 'createdAt', 'updatedAt'])
         && data.keys().hasOnly([
           'name', 'slug', 'category', 'description', 'address', 'barangay', 'city', 'province', 'region',
-          'contactNumber', 'email', 'website', 'latitude', 'longitude', 'imageUrl', 'services', 'amenities',
+          'contactNumber', 'email', 'website', 'latitude', 'longitude', 'imageUrl', 'imageUrls', 'photos', 'services', 'amenities',
           'operatingHours', 'timeZone', 'isVerified', 'isActive', 'createdAt', 'updatedAt',
           'source', 'osmType', 'osmId', 'sourceData', 'geographicReview'
         ])
@@ -85,6 +118,9 @@ service cloud.firestore {
           || ('source' in data && validOsmFacility(data, facilityId)))
         && data.isVerified is bool && data.isActive is bool
         && data.createdAt is timestamp && data.updatedAt is timestamp
+        && (!('imageUrl' in data) || validImageUrl(data.imageUrl))
+        && (!('imageUrls' in data) || validImageUrls(data.imageUrls))
+        && (!('photos' in data) || validFacilityPhotos(data.photos))
         && validCoordinates(data);
     }
 

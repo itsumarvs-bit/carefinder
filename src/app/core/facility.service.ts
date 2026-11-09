@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import {
-  addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where, onSnapshot, serverTimestamp, writeBatch,
+  addDoc, collection, deleteDoc, deleteField, doc, getDocs, query, updateDoc, where, onSnapshot, serverTimestamp, writeBatch,
 } from 'firebase/firestore';
 import { Observable, of } from 'rxjs';
 import { Facility, FacilityCategory } from '../models/facility.model';
@@ -47,6 +47,9 @@ export class FacilityService {
     this.requireFirebase();
     const { id: _id, isSample: _isSample, ...data } = input;
     const fields = omitUndefined(data);
+    for (const [key, value] of Object.entries(data)) {
+      if (value === undefined) fields[key] = deleteField();
+    }
     await updateDoc(doc(this.requireFirestore(), 'facilities', id), {
       ...fields, updatedAt: serverTimestamp(),
     });

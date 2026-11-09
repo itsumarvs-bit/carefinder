@@ -6,8 +6,9 @@ import {
   IonButton, IonContent, IonIcon, IonSearchbar, IonSpinner, ToastController,
 } from '@ionic/angular';
 import { User } from 'firebase/auth';
-import { Observable, catchError, firstValueFrom, of, shareReplay, switchMap } from 'rxjs';
+import { Observable, catchError, firstValueFrom, of, shareReplay, switchMap, tap } from 'rxjs';
 import { AuthService } from '../core/auth.service';
+import { cloudinaryImageUrl } from '../core/cloudinary.service';
 import { FavoritesService } from '../core/favorites.service';
 import { FacilityService } from '../core/facility.service';
 import { LocationService } from '../core/location.service';
@@ -46,9 +47,13 @@ export class HomePage {
     shareReplay({ bufferSize: 1, refCount: true }),
   );
   readonly facilities$: Observable<Facility[]> = this.facilityService.watchActiveFacilities().pipe(
+    tap(() => {
+      this.facilitiesLoaded = true;
+    }),
     catchError((error: unknown) => {
       console.error('Facility list could not be loaded.', error);
       this.loadError = 'We could not load healthcare facilities. Check your connection and Firebase setup, then try again.';
+      this.facilitiesLoaded = true;
       return of([]);
     }),
   ).pipe(shareReplay({ bufferSize: 1, refCount: true }));
@@ -58,6 +63,7 @@ export class HomePage {
   location: GeolocationCoordinates | null = null;
   locationMessage = '';
   loadError = '';
+  facilitiesLoaded = false;
   locating = false;
 
   getVisibleFacilities(facilities: Facility[]): Facility[] {
@@ -82,6 +88,10 @@ export class HomePage {
 
   status(facility: Facility): string {
     return facilityOpenStatus(facility);
+  }
+
+  photoUrl(facility: Facility): string | undefined {
+    return cloudinaryImageUrl(facility.imageUrl ?? facility.photos?.[0]?.secureUrl ?? facility.imageUrls?.[0], 600);
   }
 
   async useMyLocation(): Promise<void> {

@@ -2,10 +2,10 @@
   @if (facility$ | async; as facility) {
     <main class="details-shell">
       <div class="hero-image">
-        @if (facility.imageUrl) {
-          <img [src]="facility.imageUrl" [alt]="facility.name">
+        @if (facility.imageUrl || facility.photos?.length || facility.imageUrls?.length) {
+          <img [src]="photoUrl(facility)" [alt]="facility.name" loading="lazy">
         }
-        @if (!facility.imageUrl) {
+        @if (!facility.imageUrl && !facility.photos?.length && !facility.imageUrls?.length) {
           <ion-icon [name]="facility.category === 'pharmacy' ? 'bandage-outline' : facility.category === 'hospital' ? 'medkit-outline' : facility.category === 'clinic' ? 'pulse-outline' : 'heart-outline'"></ion-icon>
         }
         @if (facility.isSample) {
@@ -32,7 +32,19 @@
           <a class="primary-action" [href]="'tel:' + facility.contactNumber"><ion-icon name="call-outline"></ion-icon> Call facility</a>
         }
         <a class="primary-action" [href]="directions(facility)" target="_blank" rel="noopener noreferrer"><ion-icon name="navigate-outline"></ion-icon> Get directions</a>
+        @if (hasValidCoordinates(facility)) {
+          <ion-button class="primary-action in-app-navigation" [routerLink]="['/map']" [queryParams]="{ destination: facility.id }">
+            <ion-icon slot="start" name="navigate-circle-outline"></ion-icon> Start Navigation
+          </ion-button>
+        } @else {
+          <ion-button class="primary-action in-app-navigation" disabled>
+            <ion-icon slot="start" name="navigate-circle-outline"></ion-icon> Start Navigation
+          </ion-button>
+        }
       </div>
+      @if (!hasValidCoordinates(facility)) {
+        <p class="navigation-coordinate-note">In-app navigation is unavailable because this facility has no valid coordinates.</p>
+      }
       <div class="detail-grid">
         <section class="detail-card">
           <h2><ion-icon name="information-circle-outline"></ion-icon> Contact & location</h2>

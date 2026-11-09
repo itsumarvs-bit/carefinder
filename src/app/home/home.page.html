@@ -73,15 +73,25 @@
         @if (loadError) {
           <p class="error-note"><ion-icon name="warning-outline"></ion-icon>{{ loadError }}</p>
         }
+        @if (!facilitiesLoaded && !loadError) {
+          <div class="facility-grid skeleton-grid" aria-label="Loading healthcare facilities" aria-busy="true">
+            @for (skeleton of [0, 1, 2]; track skeleton) {
+              <div class="facility-card skeleton-card" aria-hidden="true">
+                <div class="skeleton-image"></div>
+                <div class="skeleton-copy"><span></span><span></span><span></span></div>
+              </div>
+            }
+          </div>
+        }
         @if (getVisibleFacilities(facilities); as visible) {
           <div class="facility-grid">
             @for (facility of visible; track facility) {
               <article class="facility-card" [routerLink]="['/facility', facility.id]">
                 <div class="facility-visual" [class]="'facility-visual category-' + facility.category">
                   @if (facility.imageUrl) {
-                    <img [src]="facility.imageUrl" [alt]="facility.name" loading="lazy">
+                    <img [src]="photoUrl(facility)" [alt]="facility.name" loading="lazy">
                   }
-                  @if (!facility.imageUrl) {
+                  @if (!facility.imageUrl && !facility.photos?.length && !facility.imageUrls?.length) {
                     <ion-icon [name]="facility.category === 'pharmacy' ? 'bandage-outline' : facility.category === 'hospital' ? 'medkit-outline' : facility.category === 'clinic' ? 'pulse-outline' : 'heart-outline'"></ion-icon>
                   }
                   @if (facility.isSample) {
@@ -123,7 +133,7 @@
           }
         </div>
       }
-      @if (!loadError && getVisibleFacilities(facilities).length === 0) {
+      @if (facilitiesLoaded && !loadError && getVisibleFacilities(facilities).length === 0) {
         <div class="empty-state">
           <span class="empty-icon"><ion-icon name="search-outline"></ion-icon></span>
           <h3>No facilities found</h3>

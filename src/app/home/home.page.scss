@@ -69,6 +69,42 @@
 .emergency-icon { display: grid; flex: 0 0 auto; width: 38px; height: 38px; place-items: center; border-radius: 12px; color: #c4584d; background: #fce9e6; font-size: 18px; }
 .emergency-note strong { color: #783e39; font-size: 12px; }
 .emergency-note p { margin: 3px 0 0; color: #8b625d; font-size: 11px; line-height: 1.45; }
+
+.welcome { animation: home-enter .42s ease-out both; }
+.category-card { animation: home-enter .36s ease-out both; }
+.category-card:nth-child(2) { animation-delay: 45ms; }
+.category-card:nth-child(3) { animation-delay: 90ms; }
+.category-card:nth-child(4) { animation-delay: 135ms; }
+.facility-card { animation: home-enter .38s ease-out both; }
+.facility-card:nth-child(2) { animation-delay: 45ms; }
+.facility-card:nth-child(3) { animation-delay: 90ms; }
+.category-card:active, .favorite-button:active { transform: scale(.98); }
+.search-row ion-searchbar { transition: transform 180ms ease; }
+.search-row ion-searchbar:focus-within { transform: translateY(-1px); }
+.skeleton-card { pointer-events: none; }
+.skeleton-image, .skeleton-copy span { display: block; border-radius: 8px; background: linear-gradient(90deg, #edf1f4 25%, #f7f9fa 50%, #edf1f4 75%); background-size: 200% 100%; animation: skeleton-shimmer 1.35s ease-in-out infinite; }
+.skeleton-image { height: 150px; border-radius: 0; }
+.skeleton-copy { display: grid; gap: 9px; padding: 16px; }
+.skeleton-copy span { height: 11px; }
+.skeleton-copy span:first-child { width: 43%; }
+.skeleton-copy span:last-child { width: 72%; }
+
+@keyframes home-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes skeleton-shimmer {
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome, .category-card, .facility-card,
+  .skeleton-image, .skeleton-copy span {
+    animation: none;
+  }
+  .category-card, .search-row ion-searchbar { transition-duration: 1ms; }
+}
 @media (max-width: 850px) {
   .facility-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .category-scroller { grid-template-columns: repeat(5, 140px); overflow-x: auto; padding-bottom: 5px; }

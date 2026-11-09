@@ -1,0 +1,5 @@
+@use './admin.page.scss' as admin;
+
+app-admin {
+  @include admin.admin-workspace;
+}

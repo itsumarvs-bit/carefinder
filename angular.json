@@ -39,7 +39,7 @@
           },
           "configurations": {
             "production": {
-              "allowedCommonJsDependencies": ["leaflet"],
+              "allowedCommonJsDependencies": ["leaflet", "leaflet.markercluster"],
               "budgets": [
                 {
                   "type": "initial",

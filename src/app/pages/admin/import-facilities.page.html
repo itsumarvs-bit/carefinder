@@ -8,6 +8,11 @@
       </div>
       <a routerLink="/admin" class="back-link"><ion-icon name="arrow-back-outline"></ion-icon> Facility management</a>
     </header>
+    <nav class="admin-tabs import-tabs" aria-label="Facility management sections">
+      <a routerLink="/admin" aria-label="Facilities tab"><ion-icon name="list-outline"></ion-icon>Facilities</a>
+      <a routerLink="/admin" [queryParams]="{ tab: 'add' }"><ion-icon name="add-outline"></ion-icon>Add Facility</a>
+      <a class="active" routerLink="/admin/import" aria-current="page"><ion-icon name="cloud-upload-outline"></ion-icon>Import Facilities</a>
+    </nav>
 
     <section class="warning-card" role="note">
       <ion-icon name="alert-circle-outline"></ion-icon>
@@ -21,10 +26,10 @@
     }
 
     <section class="upload-card">
-      <div><h2>Upload source data</h2><p>CSV or JSON with OSM type, ID, category, coordinates, source URL, and attribution.</p></div>
-      <label class="upload-control">
+      <div><h2>Upload source data</h2><p>Choose a CSV or JSON file with OSM type, ID, category, coordinates, source URL, and attribution. Existing OSM records are skipped and never overwritten.</p></div>
+      <label class="upload-control" (dragover)="allowDrop($event)" (drop)="onFileDrop($event)">
         <input type="file" accept=".csv,.json,text/csv,application/json" (change)="onFileSelected($event)">
-        <span><ion-icon name="cloud-upload-outline"></ion-icon> Choose CSV or JSON</span>
+        <span><ion-icon name="cloud-upload-outline"></ion-icon> Choose or drop CSV / JSON</span>
       </label>
       @if (fileName) { <p class="file-name">{{ fileName }} · {{ candidates.length }} records</p> }
     </section>

@@ -4,6 +4,8 @@
 
 export const environment = {
   production: false,
+  openRouteServiceApiKey:
+    'eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImZkZDI3YjRmNmNiMTQwODdhNTM3MzZjMDc5MGY5MmQ1IiwiaCI6Im11cm11cjY0In0=',
   firebase: {
     apiKey: 'AIzaSyD_VJ81JwkbFBNTaFqnUtnE9gEjvUprnwg',
     authDomain: 'activity12f2.firebaseapp.com',
@@ -14,6 +16,11 @@ export const environment = {
     messagingSenderId: '611492854491',
     appId: '1:611492854491:web:0b22c61e877ed8dff92afe',
     measurementId: 'G-CPWD4Q4CLQ',
+  },
+  cloudinary: {
+    cloudName: 'dmj90as7x',
+    uploadPreset: 'carefinder_facility_photos',
+    folder: 'carefinder/facilities',
   },
 };
 

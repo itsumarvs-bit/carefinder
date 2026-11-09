@@ -138,6 +138,20 @@ export class ImportFacilitiesPage {
     if (!(input instanceof HTMLInputElement)) return;
     const file = input.files?.[0];
     if (!file) return;
+    await this.loadImportFile(file);
+  }
+
+  allowDrop(event: DragEvent): void {
+    event.preventDefault();
+  }
+
+  async onFileDrop(event: DragEvent): Promise<void> {
+    event.preventDefault();
+    const file = event.dataTransfer?.files[0];
+    if (file) await this.loadImportFile(file);
+  }
+
+  private async loadImportFile(file: File): Promise<void> {
     this.errorMessage = '';
     this.summary = null;
     this.boundaryValidationConfirmed = false;
@@ -224,6 +238,16 @@ export class ImportFacilitiesPage {
 
   async importSelected(): Promise<void> {
     if (!this.canImport) return;
+    const confirmation = await this.alertController.create({
+      header: 'Import selected facilities?',
+      message: `Add ${this.newCount} new records. ${this.existingCount} records already in Firestore will be skipped and not overwritten.`,
+      buttons: [
+        { text: 'Cancel', role: 'cancel' },
+        { text: 'Import facilities', role: 'confirm' },
+      ],
+    });
+    await confirmation.present();
+    if ((await confirmation.onDidDismiss()).role !== 'confirm') return;
     this.errorMessage = '';
     this.summary = null;
     this.importing = true;

@@ -6,26 +6,66 @@ h1 { margin: 0; color: #20394d; font-size: 27px; letter-spacing: -.6px; }
 .map-heading ion-button { --border-radius: 9px; font-size: 12px; }
 .location-message { display: flex; gap: 6px; align-items: center; margin: 13px 0; color: #758894; font-size: 12px; }
 .location-message ion-icon { color: #3286b7; }
+.map-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.legend-category { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border: 1px solid #e6edf0; border-radius: 8px; color: #506876; background: #fff; font-size: 10px; }
+.legend-category ion-icon { font-size: 14px; }
+.legend-category.category-hospital ion-icon { color: #2778a9; }
+.legend-category.category-clinic ion-icon { color: #258875; }
+.legend-category.category-pharmacy ion-icon { color: #8a67a8; }
+.legend-category.category-health_center ion-icon { color: #d18439; }
 .map-layout { display: grid; height: min(68vh, 650px); min-height: 430px; grid-template-columns: minmax(0, 1fr) 320px; overflow: hidden; border: 1px solid #e3e9ed; border-radius: 15px; background: white; }
 .map-host { z-index: 0; min-width: 0; background: #e9f0f3; }
 .facility-list { overflow: auto; padding: 15px; border-left: 1px solid #e8edf1; }
 .facility-list h2 { display: flex; justify-content: space-between; margin: 0; color: #2b4457; font-size: 15px; }
 .facility-list h2 span { padding: 3px 7px; border-radius: 9px; color: #277bb0; background: #edf6fb; font-size: 10px; }
+.facility-search { width: 100%; min-height: 37px; margin-top: 11px; padding: 0 10px; border: 1px solid #e1e9ed; border-radius: 8px; outline-color: #3188a6; color: #405967; background: #fbfcfd; font: inherit; font-size: 11px; }
+.category-filters { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.category-filters button { display: inline-flex; align-items: center; gap: 3px; padding: 5px 7px; border: 1px solid #e4ebee; border-radius: 7px; color: #617985; background: #fff; font-size: 9px; cursor: pointer; }
+.category-filters button.active { border-color: #bedcd9; color: #176f67; background: #ecf7f4; }
+.category-filters ion-icon { font-size: 12px; }
 .map-hint { margin: 7px 0 11px; color: #8a979f; font-size: 10px; line-height: 1.45; }
 .map-facility { display: flex; width: 100%; align-items: flex-start; gap: 9px; padding: 11px 7px; border: 0; border-top: 1px solid #eff2f4; background: transparent; text-align: left; cursor: pointer; }
 .map-facility.selected { border-radius: 9px; background: #eef7fb; }
-.pin { display: grid; flex: 0 0 auto; width: 30px; height: 30px; place-items: center; border-radius: 9px; color: #238c7c; background: #e9f6f1; }
+.pin { display: grid; flex: 0 0 auto; width: 34px; height: 34px; place-items: center; border: 1px solid #e4ecef; border-radius: 10px; background: #f2f8f6; font-size: 18px; }
+.pin.category-hospital { color: #2778a9; }
+.pin.category-clinic { color: #258875; }
+.pin.category-pharmacy { color: #8a67a8; }
+.pin.category-health_center { color: #d18439; }
+.facility-thumbnail { flex: 0 0 auto; width: 42px; height: 42px; border-radius: 9px; object-fit: cover; background: #eef3f5; }
 .map-facility-copy { min-width: 0; }
 .map-facility-copy strong, .map-facility-copy small, .map-facility-copy em { display: block; }
 .map-facility-copy strong { overflow: hidden; color: #3a5364; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .map-facility-copy small { overflow: hidden; margin-top: 4px; color: #87959d; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.map-facility-copy em { margin-top: 4px; color: #2582b2; font-size: 9px; font-style: normal; }
+.map-facility-copy em { display: flex; align-items: center; gap: 3px; margin-top: 4px; color: #2582b2; font-size: 9px; font-style: normal; }
+.map-facility-copy em ion-icon { font-size: 12px; }
+.map-facility-copy .facility-contact { margin-top: 3px; color: #627b89; }
 .list-empty { padding: 20px 5px; color: #87959d; font-size: 11px; line-height: 1.5; }
-.selected-card { display: flex; align-items: center; gap: 16px; margin-top: 13px; padding: 14px 16px; border: 1px solid #e5edf2; border-radius: 12px; background: #fff; }
+.selected-card { display: flex; align-items: center; gap: 12px; margin-top: 13px; padding: 14px 16px; border: 1px solid #e5edf2; border-radius: 12px; background: #fff; }
+.selected-card > img, .selected-category-icon { display: grid; flex: 0 0 auto; width: 52px; height: 52px; place-items: center; border-radius: 10px; object-fit: cover; color: #426d77; background: #eef6f4; font-size: 25px; }
 .selected-card > div { flex: 1; }
-.selected-card small { color: #2386b7; font-size: 10px; font-weight: 700; }
+.selected-card small { display: flex; align-items: center; gap: 4px; color: #2386b7; font-size: 10px; font-weight: 700; }
 .selected-card h2 { margin: 3px 0; color: #2b4457; font-size: 14px; }
 .selected-card p { margin: 0; color: #87949d; font-size: 10px; }
 .selected-card a { display: inline-flex; align-items: center; gap: 5px; color: #1976d2; font-size: 11px; font-weight: 700; text-decoration: none; white-space: nowrap; }
+.selected-card ion-button { flex: 0 0 auto; --border-radius: 8px; font-size: 11px; }
+.navigation-unavailable { flex-basis: 100%; margin: 0; color: #9a6e3d; font-size: 10px; }
+.navigation-panel { margin-top: 13px; padding: 17px; border: 1px solid #dce9f1; border-radius: 14px; background: #fff; box-shadow: 0 5px 18px rgb(34 67 86 / 5%); }
+.navigation-panel-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.navigation-panel-heading .eyebrow { margin-bottom: 4px; }
+.navigation-panel h2 { margin: 0; color: #20394d; font-size: 17px; }
+.reroute-status, .navigation-status { display: inline-flex; align-items: center; gap: 7px; color: #607989; font-size: 11px; }
+.reroute-status ion-spinner, .navigation-status ion-spinner { width: 17px; height: 17px; }
+.navigation-instruction { margin: 15px 0 13px; color: #245c83; font-size: 18px; font-weight: 750; line-height: 1.35; }
+.navigation-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.navigation-metrics > div { min-width: 0; padding: 9px; border-radius: 9px; background: #f3f8fa; }
+.navigation-metrics small, .navigation-metrics strong { display: block; }
+.navigation-metrics small { color: #83949e; font-size: 9px; }
+.navigation-metrics strong { overflow: hidden; margin-top: 4px; color: #385467; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.navigation-controls { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+.navigation-controls ion-button, .navigation-panel > ion-button { --border-radius: 8px; font-size: 10px; }
+.navigation-note, .navigation-error { display: flex; align-items: flex-start; gap: 6px; margin: 11px 0 0; color: #7d8c95; font-size: 10px; line-height: 1.5; }
+.navigation-error { color: #a25443; }
+.arrival-message { display: flex; align-items: center; gap: 8px; margin: 17px 0; color: #167856; font-size: 16px; font-weight: 750; }
+.arrival-message ion-icon { font-size: 23px; }
 .map-disclaimer { margin: 12px 0; color: #8b979e; font-size: 10px; line-height: 1.5; }
-@media(max-width: 760px) { .map-shell { width: calc(100% - 26px); margin-top: 16px; } .map-layout { height: auto; min-height: 0; grid-template-columns: 1fr; } .map-host { height: 48vh; min-height: 320px; } .facility-list { max-height: 250px; border-top: 1px solid #e8edf1; border-left: 0; } .selected-card { flex-wrap: wrap; gap: 10px; } .selected-card > div { flex-basis: 100%; } }
+@media(max-width: 760px) { .map-shell { width: calc(100% - 26px); margin-top: 16px; } .map-layout { height: auto; min-height: 0; grid-template-columns: 1fr; } .map-host { height: 48vh; min-height: 320px; } .facility-list { max-height: 350px; border-top: 1px solid #e8edf1; border-left: 0; } .selected-card { flex-wrap: wrap; gap: 10px; } .selected-card > div { flex: 1 1 calc(100% - 70px); } .navigation-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

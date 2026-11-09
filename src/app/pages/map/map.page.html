@@ -1,39 +1,247 @@
 <ion-content class="map-content">
-  <main class="map-shell">
+  <main class="map-shell" [class.navigation-active]="navigationVisible">
     <div class="map-heading"><div><p class="eyebrow">HEALTHCARE NEAR YOU</p><h1>Explore the map</h1></div><ion-button [disabled]="loadingLocation" (click)="useMyLocation()">@if (loadingLocation) {
     <ion-spinner name="crescent"></ion-spinner>
     }@if (!loadingLocation) {
     <ion-icon slot="start" name="locate-outline"></ion-icon>Use my location
   }</ion-button></div>
   <p class="location-message"><ion-icon name="information-circle-outline"></ion-icon>{{ locationMessage }}</p>
+  <div class="map-legend" aria-label="Facility category legend">
+    @for (category of categoryOptions.slice(1); track category.id) {
+      <span [class]="'legend-category category-' + category.id">
+        <ion-icon [name]="categoryIcon(category.id)"></ion-icon>{{ category.label }}
+      </span>
+    }
+  </div>
+  <div class="mobile-map-controls">
+    <label class="mobile-map-search">
+      <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
+      <input type="search" [value]="searchText" (input)="setSearch($event)" placeholder="Search nearby care" aria-label="Search healthcare facilities">
+    </label>
+    <div class="mobile-category-filters" aria-label="Filter by facility category">
+      @for (category of categoryOptions; track category.id) {
+        <button type="button" [class.active]="categoryFilter === category.id" [attr.aria-pressed]="categoryFilter === category.id" (click)="setCategoryFilter(category.id)">
+          @if (category.id !== 'all') {
+            <ion-icon [name]="categoryIcon(category.id)"></ion-icon>
+          }
+          {{ category.label }}
+        </button>
+      }
+    </div>
+  </div>
   <div class="map-layout">
     <div #mapHost class="map-host" aria-label="Map showing healthcare facilities"></div>
+    <div class="mobile-map-tools" aria-label="Map controls">
+      <button type="button" [disabled]="loadingLocation" (click)="useMyLocation()" aria-label="Center map on my location">
+        @if (loadingLocation) {
+          <ion-spinner name="crescent"></ion-spinner>
+        } @else {
+          <ion-icon name="locate-outline"></ion-icon>
+        }
+      </button>
+      <div class="map-zoom-controls">
+        <button type="button" (click)="zoomMap(1)" aria-label="Zoom in">+</button>
+        <button type="button" (click)="zoomMap(-1)" aria-label="Zoom out">−</button>
+      </div>
+    </div>
     <aside class="facility-list">
-      <h2>Facilities <span>{{ visibleFacilities.length }}</span></h2>
+      <h2>Facilities <span>{{ filteredFacilities.length }}</span></h2>
+      <input class="facility-search" type="search" [value]="searchText" (input)="setSearch($event)" placeholder="Search name or address" aria-label="Search facilities by name or address">
+      <div class="category-filters" aria-label="Filter by facility category">
+        @for (category of categoryOptions; track category.id) {
+          <button type="button" [class.active]="categoryFilter === category.id" [attr.aria-pressed]="categoryFilter === category.id" (click)="setCategoryFilter(category.id)">
+            @if (category.id !== 'all') {
+              <ion-icon [name]="categoryIcon(category.id)"></ion-icon>
+            }
+            {{ category.label }}
+          </button>
+        }
+      </div>
       <p class="map-hint">{{ openMapMessage }}</p>
       @if (openMapError) {
         <ion-button size="small" fill="clear" (click)="retryOpenMapSearch()">Try again</ion-button>
       }
-      @for (facility of visibleFacilities; track facility.id) {
+      @for (facility of listedFacilities; track facility.id) {
         <button class="map-facility" [class.selected]="selectedFacility?.id === facility.id" (click)="selectFacility(facility)">
-          <span class="pin"><ion-icon name="medkit-outline"></ion-icon></span>
-          <span class="map-facility-copy"><strong>{{ facility.name || 'Name not provided' }}</strong><small>{{ facility.address || 'Address not provided' }}</small><em>{{ categoryLabels[facility.category] }}@if (facility.source === 'openstreetmap') { · OpenStreetMap }</em></span>
+          @if (thumbnailUrl(facility); as thumbnail) {
+            <img class="facility-thumbnail" [src]="thumbnail" [alt]="facilityName(facility)" loading="lazy">
+          } @else {
+            <span [class]="'pin category-' + facility.category"><ion-icon [name]="categoryIcon(facility.category)"></ion-icon></span>
+          }
+          <span class="map-facility-copy"><strong>{{ facilityName(facility) }}</strong>@if (facilityAddress(facility); as address) {
+            <small>{{ address }}</small>
+          }<em><ion-icon [name]="categoryIcon(facility.category)"></ion-icon> {{ categoryLabels[facility.category] }}@if (facility.source === 'openstreetmap') { · OpenStreetMap }</em>@if (facility.contactNumber) {
+            <small class="facility-contact">{{ facility.contactNumber }}</small>
+          }</span>
         </button>
       }
-      @if (!visibleFacilities.length && !loadingOpenMapFacilities) {
-        <p class="list-empty">No mapped facilities in this view yet. Zoom in or move to another area to search.</p>
+      @if (filteredFacilities.length > maxListItems) {
+        <p class="list-empty">Showing the first {{ maxListItems }} of {{ filteredFacilities.length }} matches. Search or filter to narrow the list.</p>
+      }
+      @if (!filteredFacilities.length && !loadingOpenMapFacilities) {
+        <p class="list-empty">{{ searchText || categoryFilter !== 'all' ? 'No facilities match these filters.' : 'No mapped facilities in this view yet. Zoom in or move to another area to search.' }}</p>
       }
     </aside>
   </div>
   @if (selectedFacility; as facility) {
-    <section class="selected-card">
-      <div><small>{{ categoryLabels[facility.category] }}</small><h2>{{ facility.name || 'Name not provided' }}</h2><p>{{ facility.address || 'Address not provided' }}</p></div>
-      <a [href]="directions(facility)" target="_blank" rel="noopener noreferrer"><ion-icon name="navigate-outline"></ion-icon> Directions</a>
-      @if (!facility.id.startsWith('osm-')) {
-        <a [routerLink]="['/facility', facility.id]" class="details-link">Details</a>
+    @if (navigationIdle) {
+      <section class="selected-card" [class.sheet-expanded]="sheetExpanded" aria-label="Selected healthcare facility">
+        <div class="sheet-controls">
+          <button type="button" class="sheet-handle" (click)="toggleSheet()" [attr.aria-expanded]="sheetExpanded" aria-label="Expand or collapse facility details"><span></span></button>
+          <button type="button" class="sheet-close" (click)="closeFacilitySheet()" aria-label="Close facility details"><ion-icon name="close-outline"></ion-icon></button>
+        </div>
+        <div class="selected-summary">
+          @if (thumbnailUrl(facility); as thumbnail) {
+            <img class="selected-photo" [src]="thumbnail" [alt]="facilityName(facility)" loading="lazy">
+          } @else {
+            <span class="selected-category-icon"><ion-icon [name]="categoryIcon(facility.category)"></ion-icon></span>
+          }
+          <div class="selected-copy">
+            <div class="selected-meta">
+              <span class="selected-category"><ion-icon [name]="categoryIcon(facility.category)"></ion-icon>{{ categoryLabels[facility.category] }}</span>
+              @if (facility.isVerified) {
+                <span class="verification verified"><ion-icon name="checkmark-circle"></ion-icon>Verified</span>
+              } @else if (facility.source === 'openstreetmap') {
+                <span class="verification"><ion-icon name="globe-outline"></ion-icon>OpenStreetMap</span>
+              } @else {
+                <span class="verification"><ion-icon name="alert-circle-outline"></ion-icon>Not verified</span>
+              }
+            </div>
+            <h2>{{ facilityName(facility) }}</h2>
+            @if (facilityAddress(facility); as address) {
+              <p class="selected-address"><ion-icon name="location-outline"></ion-icon>{{ address }}</p>
+            }
+          </div>
+        </div>
+        <div class="sheet-actions">
+          <ion-button class="start-navigation-button" [disabled]="!canNavigate(facility) || navigationLoading" (click)="startNavigation()">
+            @if (navigationLoading) {
+              <ion-spinner name="crescent"></ion-spinner>
+            } @else {
+              <ion-icon slot="start" name="navigate-circle-outline"></ion-icon>
+            }
+            Start Navigation
+          </ion-button>
+          <button type="button" class="more-info-button" (click)="toggleSheet()" [attr.aria-expanded]="sheetExpanded">
+            {{ sheetExpanded ? 'Less information' : 'More information' }}
+            <ion-icon [name]="sheetExpanded ? 'chevron-up-outline' : 'chevron-down-outline'"></ion-icon>
+          </button>
+          <a class="external-directions-link" [href]="directions(facility)" target="_blank" rel="noopener noreferrer">Directions</a>
+          @if (hasInternalDetails(facility)) {
+            <a [routerLink]="['/facility', facility.id]" class="internal-details-link">Details</a>
+          }
+        </div>
+        @if (sheetExpanded) {
+          <div class="facility-expanded-details">
+            @if (facilityAddress(facility); as address) {
+              <div class="detail-row"><ion-icon name="location-outline"></ion-icon><div><strong>Full address</strong><p>{{ address }}</p></div></div>
+            }
+            @if (phoneHref(facilityContactNumber(facility)); as phone) {
+              <div class="detail-row"><ion-icon name="call-outline"></ion-icon><div><strong>Contact</strong><p><a [href]="phone">{{ facilityContactNumber(facility) }}</a></p></div></div>
+            }
+            @if (operatingHourRows(facility); as hours) {
+              @if (hours.length) {
+                <div class="detail-row"><ion-icon name="time-outline"></ion-icon><div><strong>Operating hours</strong><ul class="hours-list">@for (hour of hours; track hour.day) {<li><span>{{ hour.day }}</span><span>{{ hour.hours }}</span></li>}</ul></div></div>
+              }
+            }
+            @if (facilityServices(facility); as services) {
+              @if (services.length) {
+                <div class="detail-row"><ion-icon name="medkit-outline"></ion-icon><div><strong>Available services</strong><p>{{ services.join(', ') }}</p></div></div>
+              }
+            }
+            @if (facility.amenities?.length) {
+              <div class="detail-row"><ion-icon name="sparkles-outline"></ion-icon><div><strong>Amenities</strong><p>{{ facility.amenities.join(', ') }}</p></div></div>
+            }
+            @if (facility.description) {
+              <div class="detail-row"><ion-icon name="information-circle-outline"></ion-icon><div><strong>About</strong><p>{{ facility.description }}</p></div></div>
+            }
+            @if (facility.email) {
+              <div class="detail-row"><ion-icon name="mail-outline"></ion-icon><div><strong>Email</strong><p><a [href]="'mailto:' + facility.email">{{ facility.email }}</a></p></div></div>
+            }
+            @if (websiteHref(facility.website || facility.sourceData?.originalWebsite); as website) {
+              <div class="detail-row"><ion-icon name="globe-outline"></ion-icon><div><strong>Website</strong><p><a [href]="website" target="_blank" rel="noopener noreferrer">Visit website</a></p></div></div>
+            }
+            @if (facilityPhotoUrls(facility); as photos) {
+              @if (photos.length) {
+                <div class="facility-photo-gallery" aria-label="Facility photos">@for (photo of photos; track photo) {<img [src]="photo" [alt]="facilityName(facility)" loading="lazy">}</div>
+              }
+            }
+            <p class="facility-source-note">
+              @if (facility.isVerified) {
+                <ion-icon name="checkmark-circle"></ion-icon>Verified by CareFinder
+              } @else if (facility.source === 'openstreetmap') {
+                <ion-icon name="globe-outline"></ion-icon>Community listing from OpenStreetMap; details may be incomplete.
+              } @else {
+                <ion-icon name="alert-circle-outline"></ion-icon>Not verified by CareFinder
+              }
+            </p>
+          </div>
+        }
+        @if (!canNavigate(facility)) {
+          <p class="navigation-unavailable">In-app navigation is unavailable because this facility has no valid coordinates.</p>
+        }
+        @if (navigationError) {
+          <p class="navigation-unavailable">{{ navigationError }}</p>
+        }
+      </section>
+    }
+  }
+  @if (navigationVisible) {
+    <section class="navigation-panel" aria-live="polite">
+      <div class="navigation-panel-heading">
+        <div><p class="eyebrow">IN-APP NAVIGATION</p><h2>{{ navigationFacilityName }}</h2></div>
+        @if (rerouteLoading) {
+          <span class="reroute-status"><ion-spinner name="crescent"></ion-spinner> Updating route</span>
+        }
+      </div>
+      @if (navigationLoading) {
+        <p class="navigation-status"><ion-spinner name="crescent"></ion-spinner> Preparing your route and GPS tracking…</p>
+      } @else if (navigationArrived) {
+        <p class="arrival-message"><ion-icon name="checkmark-circle"></ion-icon> You have arrived at your destination.</p>
+      } @else {
+        <p class="navigation-instruction">{{ navigationPaused ? 'Navigation paused' : currentInstruction }}</p>
+        <div class="navigation-metrics">
+          <div><small>Next turn</small><strong>{{ navigationTurnDistanceText }}</strong></div>
+          <div><small>Remaining</small><strong>{{ navigationRemainingText }}</strong></div>
+          <div><small>Estimated arrival</small><strong>{{ navigationTimeText }}</strong></div>
+          <div><small>Travel time</small><strong>{{ navigationDurationText }}</strong></div>
+        </div>
+        @if (navigationInProgress) {
+          <div class="navigation-controls">
+            <ion-button size="small" (click)="pauseNavigation()"><ion-icon slot="start" name="pause-outline"></ion-icon>Pause</ion-button>
+            <ion-button size="small" fill="outline" [disabled]="!voiceSupported" (click)="toggleVoice()">
+              <ion-icon slot="start" [name]="voiceMuted ? 'volume-mute-outline' : 'volume-high-outline'"></ion-icon>{{ navigationMuteLabel }}
+            </ion-button>
+            <ion-button size="small" fill="outline" [disabled]="!voiceSupported || voiceMuted" (click)="repeatInstruction()">
+              <ion-icon slot="start" name="repeat-outline"></ion-icon>Repeat instruction
+            </ion-button>
+            <ion-button size="small" fill="clear" color="medium" (click)="endNavigation()"><ion-icon slot="start" name="stop-circle-outline"></ion-icon>End</ion-button>
+          </div>
+        } @else if (navigationPaused) {
+          <div class="navigation-controls">
+            <ion-button size="small" [disabled]="navigationLoading" (click)="resumeNavigation()">
+              <ion-icon slot="start" name="play-outline"></ion-icon>Resume
+            </ion-button>
+            <ion-button size="small" fill="outline" [disabled]="!voiceSupported" (click)="toggleVoice()">
+              <ion-icon slot="start" [name]="voiceMuted ? 'volume-mute-outline' : 'volume-high-outline'"></ion-icon>{{ navigationMuteLabel }}
+            </ion-button>
+            <ion-button size="small" fill="outline" [disabled]="!voiceSupported || voiceMuted" (click)="repeatInstruction()">
+              <ion-icon slot="start" name="repeat-outline"></ion-icon>Repeat instruction
+            </ion-button>
+            <ion-button size="small" fill="clear" color="medium" (click)="endNavigation()"><ion-icon slot="start" name="stop-circle-outline"></ion-icon>End</ion-button>
+          </div>
+        } @else {
+          <ion-button size="small" (click)="closeArrival()"><ion-icon slot="start" name="close-outline"></ion-icon>Close navigation</ion-button>
+        }
+      }
+      @if (!voiceSupported) {
+        <p class="navigation-note">Spoken directions are not supported in this browser or device. You can still follow the on-screen instructions.</p>
+      }
+      @if (navigationError) {
+        <p class="navigation-error"><ion-icon name="alert-circle-outline"></ion-icon>{{ navigationError }}</p>
       }
     </section>
   }
-  <p class="map-disclaimer">Map tiles and community-mapped healthcare places © OpenStreetMap contributors. Coverage and listing details vary by area and are not independently verified by CareFinder. Directions open in Google Maps and may require an internet connection. CareFinder does not provide real-time traffic or turn-by-turn navigation.</p>
+  <p class="map-disclaimer">Map tiles and community-mapped healthcare places © OpenStreetMap contributors. Coverage and listing details vary by area and are not independently verified by CareFinder. In-app driving navigation requires GPS and internet access, and does not provide live traffic. External Directions links open Google Maps.</p>
 </main>
 </ion-content>

@@ -2,4 +2,13 @@
   <app-main-header></app-main-header>
   <ion-router-outlet></ion-router-outlet>
   <app-main-navigation></app-main-navigation>
+  @if (introVisible) {
+    <div class="app-intro" [class.app-intro-leaving]="introLeaving" role="status" aria-label="CareFinder">
+      <div class="intro-brand">
+        <span class="intro-mark"><ion-icon name="medical"></ion-icon></span>
+        <strong>Care<span>Finder</span></strong>
+        <p>Healthcare near you.</p>
+      </div>
+    </div>
+  }
 </ion-app>

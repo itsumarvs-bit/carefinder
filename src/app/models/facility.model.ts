@@ -38,6 +38,11 @@ export interface OperatingDay {
   closed?: boolean;
 }
 
+export interface FacilityPhoto {
+  secureUrl: string;
+  publicId?: string;
+}
+
 export type OperatingHours = Partial<Record<
   'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday',
   OperatingDay
@@ -57,9 +62,12 @@ export interface Facility {
   contactNumber?: string;
   email?: string;
   website?: string;
+  openingHoursText?: string;
   latitude?: number;
   longitude?: number;
   imageUrl?: string;
+  imageUrls?: string[];
+  photos?: FacilityPhoto[];
   services?: string[];
   amenities?: string[];
   operatingHours?: OperatingHours;

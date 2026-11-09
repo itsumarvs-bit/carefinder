@@ -13,6 +13,8 @@ h1 { margin: 5px 0 7px; color: #20394d; font-size: clamp(24px, 4vw, 34px); lette
 .action-row { display: flex; gap: 10px; margin: 18px 0 22px; }
 .primary-action { display: inline-flex; min-height: 43px; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border-radius: 10px; color: white; background: #1976d2; font-size: 12px; font-weight: 700; text-decoration: none; }
 .primary-action + .primary-action { color: #1976d2; background: #e7f2fa; }
+.in-app-navigation { margin: 0; --border-radius: 10px; --background: #1976d2; --color: #fff; font-size: 12px; }
+.navigation-coordinate-note { margin: -12px 0 20px; color: #9a6e3d; font-size: 11px; }
 .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 .detail-card { padding: 19px; border: 1px solid #e8edf1; border-radius: 15px; background: #fff; }
 .detail-card h2 { display: flex; align-items: center; gap: 7px; margin: 0 0 17px; color: #284356; font-size: 15px; }

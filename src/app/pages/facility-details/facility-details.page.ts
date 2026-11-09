@@ -7,6 +7,7 @@ import {
 import { User } from 'firebase/auth';
 import { combineLatest, firstValueFrom, map, of, shareReplay, switchMap } from 'rxjs';
 import { AuthService } from '../../core/auth.service';
+import { cloudinaryImageUrl } from '../../core/cloudinary.service';
 import { FavoritesService } from '../../core/favorites.service';
 import { FacilityService } from '../../core/facility.service';
 import { directionsUrl, facilityOpenStatus } from '../../core/facility-utils';
@@ -43,8 +44,19 @@ export class FacilityDetailsPage {
     return facilityOpenStatus(facility);
   }
 
+  photoUrl(facility: Facility): string | undefined {
+    return cloudinaryImageUrl(facility.imageUrl ?? facility.photos?.[0]?.secureUrl ?? facility.imageUrls?.[0], 1200);
+  }
+
   directions(facility: Facility): string {
     return directionsUrl(facility);
+  }
+
+  hasValidCoordinates(facility: Facility): boolean {
+    return typeof facility.latitude === 'number' && Number.isFinite(facility.latitude)
+      && facility.latitude >= -90 && facility.latitude <= 90
+      && typeof facility.longitude === 'number' && Number.isFinite(facility.longitude)
+      && facility.longitude >= -180 && facility.longitude <= 180;
   }
 
   days(facility: Facility): Array<{ label: string; value: string }> {

@@ -1,3 +1,5 @@
+@use './app/pages/admin/admin-workspace.global.scss';
+
 /*
  * App Global CSS
  * ----------------------------------------------------------------------------
@@ -25,6 +27,8 @@
 @import "@ionic/angular/css/text-transformation.css";
 @import "@ionic/angular/css/flex-utils.css";
 @import "leaflet/dist/leaflet.css";
+@import "leaflet.markercluster/dist/MarkerCluster.css";
+@import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 
 /**
  * Ionic Dark Mode
@@ -49,9 +53,197 @@
   --ion-color-secondary-contrast-rgb: 255, 255, 255;
 }
 
+.facility-marker { border: 0; background: transparent; }
+.facility-marker-glyph {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  box-shadow: 0 1px 5px rgb(25 54 72 / 30%);
+}
+.facility-marker-glyph svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.facility-marker-hospital { background: #2778a9; }
+.facility-marker-clinic { background: #258875; }
+.facility-marker-pharmacy { background: #8a67a8; }
+.facility-marker-health_center { background: #d18439; }
+.facility-cluster { border: 0; background: transparent; }
+.facility-cluster span {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  background: #327fa4;
+  box-shadow: 0 2px 7px rgb(25 54 72 / 28%);
+  font-size: 12px;
+  font-weight: 800;
+}
+.facility-cluster-medium span { width: 44px; height: 44px; background: #277e79; }
+.facility-cluster-large span { width: 50px; height: 50px; background: #315d7a; }
+.leaflet-popup-content-wrapper { overflow: hidden; border-radius: 12px; }
+.leaflet-popup-content { width: min(320px, calc(100vw - 72px)) !important; margin: 0 !important; }
+.facility-popup { overflow: hidden; color: #405664; font-family: var(--ion-font-family); }
+.facility-popup-gallery { display: flex; gap: 5px; overflow-x: auto; padding: 8px 8px 4px; scroll-snap-type: x mandatory; }
+.facility-popup-gallery img { flex: 0 0 116px; width: 116px; height: 82px; border-radius: 7px; object-fit: cover; background: #eef3f5; scroll-snap-align: start; }
+.facility-popup-placeholder { display: flex; height: 80px; align-items: center; justify-content: center; gap: 8px; color: #50727d; background: #edf6f3; }
+.facility-popup-placeholder svg { width: 25px; height: 25px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.facility-popup-placeholder small { font-size: 11px; font-weight: 700; }
+.facility-popup-content { padding: 8px 12px 12px; }
+.facility-popup-category { display: inline-flex; align-items: center; gap: 4px; color: #258575; font-size: 10px; font-weight: 700; }
+.facility-popup-category svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.8; }
+.facility-popup-verified { display: inline-block; margin-left: 6px; padding: 3px 6px; border-radius: 6px; color: #22765f; background: #e8f6f0; font-size: 9px; font-weight: 700; }
+.facility-popup-content h3 { margin: 4px 0 6px; color: #2b4457; font-size: 14px; line-height: 1.3; }
+.facility-popup-content p { max-height: 70px; overflow: auto; margin: 4px 0; color: #657985; font-size: 10px; line-height: 1.45; overflow-wrap: anywhere; }
+.facility-popup-content p strong { color: #445e6e; }
+.facility-popup-content a { color: #1472a2; font-weight: 600; text-decoration: none; }
+.facility-popup-actions { display: flex; gap: 7px; margin-top: 9px; }
+.facility-popup-details, .facility-popup-directions { padding: 7px 9px; border-radius: 7px; color: #176e62 !important; background: #e9f5f1; font-size: 10px; }
+.facility-popup-directions { color: #fff !important; background: #1976d2; }
+.navigation-destination-marker { display: grid; place-items: center; border: 0; background: transparent; }
+.navigation-destination-marker span { display: block; width: 18px; height: 18px; border: 4px solid #fff; border-radius: 50%; background: #d33c53; box-shadow: 0 1px 6px rgb(25 54 72 / 40%); }
+
 html, body { background: #f5f7fa; }
 ion-toolbar { --background: #fff; --color: #294356; }
 ion-content {
   --padding-top: 84px;
   --padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+
+app-map .map-shell {
+  .mobile-map-controls, .mobile-map-tools { display: none; }
+  .selected-card { position: relative; align-items: flex-start; box-shadow: 0 8px 24px rgb(34 67 86 / 8%); }
+  .sheet-controls { display: none; }
+  .selected-summary { display: flex; min-width: 0; flex: 1 1 360px; align-items: center; gap: 12px; }
+  .selected-photo, .selected-category-icon { display: grid; flex: 0 0 auto; width: 58px; height: 58px; place-items: center; border-radius: 13px; object-fit: cover; color: #267c88; background: #edf6f4; font-size: 25px; }
+  .selected-copy { min-width: 0; }
+  .selected-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .selected-category, .verification { display: inline-flex; align-items: center; gap: 4px; color: #277e79; font-size: 10px; font-weight: 750; }
+  .verification { color: #758590; }
+  .verification.verified { color: #23866b; }
+  .selected-copy h2 { margin: 4px 0; color: #263f52; font-size: 15px; line-height: 1.3; }
+  .selected-address { display: flex; align-items: flex-start; gap: 4px; margin: 0; color: #758692; font-size: 10px; line-height: 1.4; }
+  .selected-address ion-icon { flex: 0 0 auto; color: #488db5; }
+  .sheet-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+  .start-navigation-button { min-height: 42px; --border-radius: 10px; font-size: 12px; font-weight: 750; }
+  .more-info-button, .internal-details-link, .external-directions-link { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 5px; padding: 0 11px; border: 1px solid #e0e9ed; border-radius: 9px; color: #326779; background: #fff; font: inherit; font-size: 11px; font-weight: 700; text-decoration: none; cursor: pointer; }
+  .internal-details-link { color: #1976d2; }
+  .facility-expanded-details { flex: 1 0 100%; padding-top: 12px; border-top: 1px solid #edf1f3; animation: sheet-details-in 220ms ease both; }
+  .detail-row { display: flex; gap: 9px; padding: 9px 0; color: #748591; font-size: 11px; line-height: 1.5; }
+  .detail-row > ion-icon { flex: 0 0 auto; margin-top: 2px; color: #348a9a; font-size: 16px; }
+  .detail-row > div { min-width: 0; }
+  .detail-row strong { display: block; color: #395365; font-size: 11px; }
+  .detail-row p { margin: 2px 0 0; overflow-wrap: anywhere; }
+  .detail-row a { color: #1976d2; font-weight: 650; text-decoration: none; }
+  .hours-list { display: grid; gap: 3px; margin: 4px 0 0; padding: 0; list-style: none; }
+  .hours-list li { display: flex; justify-content: space-between; gap: 16px; }
+  .facility-photo-gallery { display: flex; gap: 8px; overflow-x: auto; padding: 8px 0; scroll-snap-type: x mandatory; }
+  .facility-photo-gallery img { flex: 0 0 150px; width: 150px; height: 96px; border-radius: 10px; object-fit: cover; scroll-snap-align: start; }
+  .facility-source-note { display: flex; align-items: center; gap: 5px; margin: 8px 0 0; color: #778792; font-size: 10px; line-height: 1.4; }
+  .facility-source-note ion-icon { flex: 0 0 auto; color: #298477; }
+  .navigation-panel { position: relative; z-index: 2; }
+  .navigation-controls ion-button { min-height: 42px; --border-radius: 10px; }
+  .reroute-status { padding: 7px 10px; border-radius: 9px; color: #805c16; background: #fff4d8; font-weight: 700; animation: reroute-pulse 1.1s ease-in-out infinite alternate; }
+  .arrival-message { animation: arrival-in 420ms cubic-bezier(.2, .75, .25, 1) both; }
+}
+
+@keyframes sheet-in {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes sheet-details-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes reroute-pulse {
+  from { box-shadow: 0 0 0 0 rgb(219 160 30 / 12%); }
+  to { box-shadow: 0 0 0 5px rgb(219 160 30 / 0%); }
+}
+@keyframes arrival-in {
+  from { opacity: 0; transform: scale(.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@media (max-width: 760px) {
+  app-map ion-content.map-content.map-content { --padding-top: 0; --padding-bottom: 0; }
+  app-map ion-content.map-content .map-shell {
+    position: fixed;
+    z-index: 0;
+    inset: calc(68px + env(safe-area-inset-top)) 0 calc(58px + env(safe-area-inset-bottom));
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: hidden;
+  }
+  app-map .map-shell .map-heading,
+  app-map .map-shell .location-message,
+  app-map .map-shell .map-legend { display: none; }
+  app-map .map-shell .map-layout { position: absolute; inset: 0; display: block; height: auto; min-height: 0; overflow: visible; border: 0; border-radius: 0; background: #e9f0f3; }
+  app-map .map-shell .leaflet-control-zoom { display: none; }
+  app-map .map-shell .map-host { position: absolute; inset: 0; width: 100%; height: auto; min-height: 0; }
+  app-map .map-shell .facility-list { display: none; }
+  app-map .map-shell .mobile-map-controls { position: absolute; z-index: 450; top: 12px; right: 14px; left: 14px; display: block; }
+  app-map .map-shell .mobile-map-search { display: flex; height: 50px; align-items: center; gap: 10px; padding: 0 15px; border: 1px solid #e4ebef; border-radius: 16px; color: #607989; background: #fff; box-shadow: 0 5px 18px rgb(28 58 76 / 14%); }
+  app-map .map-shell .mobile-map-search ion-icon { flex: 0 0 auto; font-size: 19px; }
+  app-map .map-shell .mobile-map-search input { width: 100%; min-width: 0; border: 0; outline: 0; color: #2e4657; background: transparent; font: inherit; font-size: 14px; }
+  app-map .map-shell .mobile-map-search input::placeholder { color: #8998a1; }
+  app-map .map-shell .mobile-category-filters { display: flex; gap: 7px; overflow-x: auto; margin-top: 10px; padding: 2px 0 5px; scrollbar-width: none; }
+  app-map .map-shell .mobile-category-filters::-webkit-scrollbar { display: none; }
+  app-map .map-shell .mobile-category-filters button { display: inline-flex; min-height: 44px; flex: 0 0 auto; align-items: center; gap: 5px; padding: 0 12px; border: 1px solid #e3eaed; border-radius: 20px; color: #526977; background: #fff; box-shadow: 0 2px 8px rgb(28 58 76 / 9%); font: inherit; font-size: 11px; font-weight: 650; }
+  app-map .map-shell .mobile-category-filters button.active { border-color: #1976d2; color: #fff; background: #1976d2; }
+  app-map .map-shell .mobile-map-tools { position: absolute; z-index: 450; top: 126px; right: 14px; display: flex; flex-direction: column; gap: 9px; }
+  app-map .map-shell .mobile-map-tools > button,
+  app-map .map-shell .map-zoom-controls button { display: grid; width: 46px; height: 46px; place-items: center; border: 1px solid #e4eaee; border-radius: 14px; color: #276789; background: #fff; box-shadow: 0 3px 12px rgb(28 58 76 / 14%); font-size: 20px; }
+  app-map .map-shell .mobile-map-tools > button ion-icon { font-size: 21px; }
+  app-map .map-shell .map-zoom-controls { display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e4eaee; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px rgb(28 58 76 / 14%); }
+  app-map .map-shell .map-zoom-controls button { border: 0; border-radius: 0; box-shadow: none; font-size: 24px; }
+  app-map .map-shell .map-zoom-controls button + button { border-top: 1px solid #edf1f3; }
+  app-map .map-shell .selected-card { position: absolute; z-index: 600; right: 0; bottom: 0; left: 0; display: block; max-height: 260px; overflow-y: auto; margin: 0; padding: 7px 17px 15px; border: 0; border-radius: 21px 21px 0 0; background: #fff; box-shadow: 0 -7px 28px rgb(20 49 67 / 17%); transition: max-height 300ms cubic-bezier(.2, .75, .25, 1); overscroll-behavior: contain; }
+  app-map .map-shell .selected-card.sheet-expanded { max-height: 78dvh; }
+  app-map .map-shell .sheet-controls { position: relative; display: flex; height: 29px; justify-content: center; }
+  app-map .map-shell .sheet-handle { display: grid; width: 56px; height: 28px; place-items: center; border: 0; background: transparent; }
+  app-map .map-shell .sheet-handle span { width: 36px; height: 4px; border-radius: 3px; background: #d3dce1; }
+  app-map .map-shell .sheet-close { position: absolute; top: 0; right: -7px; display: grid; width: 44px; height: 44px; place-items: center; border: 0; border-radius: 50%; color: #647984; background: transparent; font-size: 20px; }
+  app-map .map-shell .selected-summary { gap: 11px; align-items: flex-start; }
+  app-map .map-shell .selected-photo,
+  app-map .map-shell .selected-category-icon { width: 58px; height: 58px; border-radius: 12px; }
+  app-map .map-shell .selected-copy h2 { font-size: 15px; }
+  app-map .map-shell .selected-address { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  app-map .map-shell .sheet-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 13px; }
+  app-map .map-shell .sheet-actions > :first-child { grid-column: 1 / -1; }
+  app-map .map-shell .start-navigation-button { width: 100%; min-height: 48px; margin: 0; --border-radius: 12px; font-size: 13px; }
+  app-map .map-shell .more-info-button { min-height: 48px; padding: 0 10px; white-space: nowrap; }
+  app-map .map-shell .internal-details-link,
+  app-map .map-shell .external-directions-link { min-height: 44px; }
+  app-map .map-shell .facility-expanded-details { margin-top: 13px; }
+  app-map .map-shell .navigation-unavailable { margin-top: 9px; }
+  app-map .map-shell .navigation-panel { position: absolute; z-index: 650; right: 0; bottom: 0; left: 0; max-height: min(68dvh, 570px); overflow-y: auto; margin: 0; padding: 18px 18px calc(16px + env(safe-area-inset-bottom)); border: 0; border-radius: 21px 21px 0 0; background: #fff; box-shadow: 0 -7px 28px rgb(20 49 67 / 18%); animation: sheet-in 300ms cubic-bezier(.2, .75, .25, 1) both; overscroll-behavior: contain; }
+  app-map .map-shell .navigation-panel-heading { align-items: flex-start; }
+  app-map .map-shell .navigation-panel h2 { font-size: 16px; }
+  app-map .map-shell .navigation-instruction { margin: 17px 0; color: #164e78; font-size: clamp(22px, 6vw, 28px); line-height: 1.25; }
+  app-map .map-shell .navigation-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  app-map .map-shell .navigation-metrics > div { padding: 11px; border: 1px solid #eaf0f3; border-radius: 11px; }
+  app-map .map-shell .navigation-metrics small { font-size: 10px; }
+  app-map .map-shell .navigation-metrics strong { font-size: 13px; }
+  app-map .map-shell .navigation-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+  app-map .map-shell .navigation-controls ion-button { min-height: 46px; margin: 0; --border-radius: 11px; font-size: 11px; }
+  app-map .map-shell .navigation-panel > ion-button { min-height: 46px; }
+  app-map .map-shell .navigation-controls ion-button:last-child { grid-column: span 2; }
+  app-map .map-shell .arrival-message { min-height: 100px; justify-content: center; margin: 15px 0; padding: 20px; border-radius: 16px; color: #167856; background: #eaf7f0; font-size: 18px; text-align: center; animation: arrival-in 420ms cubic-bezier(.2, .75, .25, 1) both; }
+  app-map .map-shell.navigation-active .mobile-map-controls,
+  app-map .map-shell.navigation-active .mobile-map-tools { display: none; }
+  app-map .map-shell.navigation-active .navigation-panel { max-height: min(72dvh, 620px); }
+  app-map .map-shell .map-disclaimer { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  app-map .map-shell .selected-card,
+  app-map .map-shell .facility-expanded-details,
+  app-map .map-shell .navigation-panel,
+  app-map .map-shell .arrival-message,
+  app-map .map-shell .reroute-status { animation: none; transition-duration: 1ms; }
 }

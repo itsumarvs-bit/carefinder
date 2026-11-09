@@ -66,7 +66,9 @@ User IDs are Firebase Authentication UIDs. A profile contains `uid`, `displayNam
 - OpenStreetMap tile use is subject to the public tile service's usage policy; use an appropriate provider for production-scale traffic and retain attribution.
 - Geolocation is requested only after the user presses **Use my location**. If permission is denied or unavailable, search and the facility list remain usable.
 - Distance ordering is Haversine straight-line distance, never driving distance or travel time.
-- Directions open an external Google Maps URL using coordinates when available or the address otherwise. There is no traffic or turn-by-turn claim.
+- The map and facility details page can start in-app driving directions for facilities with valid coordinates. OpenRouteService provides the route and spoken turn-by-turn instructions; GPS tracking, pause/resume, mute/repeat, rerouting, and arrival detection work only while the app remains open and in the foreground. This feature does not provide live traffic or background/locked-screen navigation.
+- Set `openRouteServiceApiKey` in `src/environments/environment.ts` for local builds and in `src/environments/environment.prod.ts` for production builds. For a local test, temporarily set the key in those files and keep that change uncommitted; in deployment, inject it from your protected build secret store. The checked-in values remain blank. Never commit a real key to GitHub. The key is included in the compiled web/iOS app and is visible to users. Restrict the key and its quotas in the OpenRouteService dashboard. For stronger protection, route requests through a secure backend proxy that keeps the key server-side.
+- Capacitor Geolocation requests permission only after **Start Navigation** is pressed. On iOS, allow location access while using CareFinder. Spoken instructions use the Web Speech API when available; unsupported versions still show on-screen instructions. Speech support and voice selection can vary between iOS Safari and WKWebView.
 - On a browser, geolocation requires a secure context (HTTPS or localhost). Android device testing requires Android Studio and a configured Android SDK.
 
 ## Administration
@@ -94,7 +96,9 @@ npx ionic cap sync android
 npx ionic cap open android
 ```
 
-The Android steps require Android Studio and its SDK. For a browser preview, use `npm start` and test with location permission both allowed and denied. A production web deployment builds to `www`; after configuring the Firebase CLI project, deploy Firestore rules and Firebase Hosting:
+The Android steps require Android Studio and its SDK. For a browser preview, use `npm start` and test with location permission both allowed and denied. In-app routing requires an OpenRouteService API key and a network connection. To install or refresh Capacitor's native location plugin after dependency changes, run `npx cap sync ios` (or `npx cap sync android`). On a Mac with Xcode, run `npm run build`, `npx cap sync ios`, open `ios/App/App.xcodeproj`, select a signing team and iPhone 13 Pro Max, then install and allow **While Using the App** location access. Start navigation from a facility with valid coordinates while CareFinder remains open; verify spoken directions or use the on-screen instructions if Web Speech is unavailable. Test permission denial, pause/resume, mute/repeat, rerouting, and arrival. Navigation intentionally stops when the map page is destroyed and is not supported while the phone is locked or the app is backgrounded.
+
+A production web deployment builds to `www`; after configuring the Firebase CLI project, deploy Firestore rules and Firebase Hosting:
 
 ```powershell
 npm run build
