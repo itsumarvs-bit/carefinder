@@ -1,5 +1,5 @@
 
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild, inject, isDevMode } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { RouterLink } from '@angular/router';
 import {
@@ -59,6 +59,11 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly zone = inject(NgZone);
   private map?: L.Map;
+  private tileLayer?: L.TileLayer;
+  private resizeObserver?: ResizeObserver;
+  private invalidateTimer?: ReturnType<typeof setTimeout>;
+  private pageVisible = false;
+  private lastTileErrorLogAt = 0;
   private markerCluster?: L.MarkerClusterGroup;
   private markers: L.Marker[] = [];
   private openMapMarkers: L.Marker[] = [];
@@ -112,7 +117,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   categoryFilter: FacilityCategory | 'all' = 'all';
   readonly maxListItems = 100;
   private locationMarker?: L.CircleMarker;
-  private mobileViewport = typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches;
+  private mobileViewport = typeof window !== 'undefined' && this.isMobileMapLayout();
 
   get visibleFacilities(): Facility[] {
     return [
@@ -159,12 +164,59 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit(): void {
-    if (!this.mapHost) return;
-    this.map = L.map(this.mapHost.nativeElement, { scrollWheelZoom: false }).setView([12.8797, 121.774], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    const host = this.mapHost?.nativeElement;
+    if (!host || typeof ResizeObserver === 'undefined') return;
+    this.resizeObserver = new ResizeObserver(() => {
+      if (!this.pageVisible) return;
+      if (!this.map) this.initializeMapWhenSized();
+      else this.scheduleMapInvalidation('container-resize', 80);
+    });
+    this.resizeObserver.observe(host);
+  }
+
+  ionViewDidEnter(): void {
+    this.pageVisible = true;
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      if (!this.map) this.initializeMapWhenSized();
+      else this.scheduleMapInvalidation('page-enter', 180);
+    }));
+  }
+
+  ionViewWillLeave(): void {
+    this.pageVisible = false;
+    if (this.invalidateTimer) clearTimeout(this.invalidateTimer);
+  }
+
+  private initializeMapWhenSized(): void {
+    const host = this.mapHost?.nativeElement;
+    if (!host || !this.pageVisible || this.map) return;
+    const { width, height } = host.getBoundingClientRect();
+    if (width <= 0 || height <= 0) {
+      if (isDevMode()) console.debug('Leaflet map initialization deferred until its container has dimensions.', { width, height });
+      return;
+    }
+
+    if (isDevMode()) console.debug('Initializing Leaflet map.', { width, height });
+    this.map = L.map(host, { scrollWheelZoom: false }).setView([12.8797, 121.774], 6);
+    this.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      minZoom: 3,
       maxZoom: 19,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
-    }).addTo(this.map);
+    });
+    this.tileLayer.on('loading', () => {
+      if (isDevMode()) console.debug('OpenStreetMap tiles loading.');
+    });
+    this.tileLayer.on('load', () => {
+      if (isDevMode()) console.debug('OpenStreetMap tiles loaded.');
+    });
+    this.tileLayer.on('tileerror', (event) => {
+      const now = Date.now();
+      if (isDevMode() && now - this.lastTileErrorLogAt >= 10_000) {
+        this.lastTileErrorLogAt = now;
+        console.warn('An OpenStreetMap tile failed to load; Leaflet will not retry it automatically.', event.error);
+      }
+    });
+    this.tileLayer.addTo(this.map);
     this.markerCluster = L.markerClusterGroup({
       maxClusterRadius: (zoom) => zoom < 8 ? 56 : 42,
       chunkedLoading: true,
@@ -177,16 +229,48 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.map.on('moveend', () => this.scheduleOpenMapRefresh());
     this.renderFacilityMarkers();
     this.scheduleOpenMapRefresh();
-    setTimeout(() => this.map?.invalidateSize(), 0);
+    this.scheduleMapInvalidation('map-initialized', 80);
+  }
+
+  private scheduleMapInvalidation(reason: string, delay = 100): void {
+    if (this.invalidateTimer) clearTimeout(this.invalidateTimer);
+    this.invalidateTimer = setTimeout(() => {
+      this.invalidateTimer = undefined;
+      const host = this.mapHost?.nativeElement;
+      if (!this.pageVisible || !this.map || !host?.isConnected) return;
+      const { width, height } = host.getBoundingClientRect();
+      if (width <= 0 || height <= 0) {
+        if (isDevMode()) console.debug('Leaflet size invalidation skipped for a zero-sized container.', { reason, width, height });
+        return;
+      }
+      this.map.invalidateSize({ pan: false, debounceMoveend: true });
+      if (isDevMode()) console.debug('Leaflet map size invalidated.', { reason, width, height });
+    }, delay);
   }
 
   @HostListener('window:resize')
   onWindowResize(): void {
-    const isMobile = window.matchMedia('(max-width: 760px)').matches;
-    if (isMobile === this.mobileViewport) return;
-    this.mobileViewport = isMobile;
-    this.renderFacilityMarkers();
-    this.renderOpenMapMarkers();
+    const isMobile = this.isMobileMapLayout();
+    if (isMobile !== this.mobileViewport) {
+      this.mobileViewport = isMobile;
+      this.renderFacilityMarkers();
+      this.renderOpenMapMarkers();
+    }
+    if (this.pageVisible) {
+      if (!this.map) this.initializeMapWhenSized();
+      else this.scheduleMapInvalidation('window-resize', 120);
+    }
+  }
+
+  @HostListener('window:orientationchange')
+  onOrientationChange(): void {
+    if (!this.pageVisible) return;
+    if (!this.map) this.initializeMapWhenSized();
+    else this.scheduleMapInvalidation('orientation-change', 250);
+  }
+
+  private isMobileMapLayout(): boolean {
+    return window.matchMedia('(max-width: 760px), (max-height: 500px) and (orientation: landscape)').matches;
   }
 
   ngOnDestroy(): void {
@@ -195,6 +279,8 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.navigationFacility = undefined;
     this.facilitiesSubscription?.unsubscribe();
     if (this.openMapRefreshTimer) clearTimeout(this.openMapRefreshTimer);
+    if (this.invalidateTimer) clearTimeout(this.invalidateTimer);
+    this.resizeObserver?.disconnect();
     this.openMapRequest?.abort();
     this.voiceService.stop();
     void this.locationService.stopWatchingNavigationPosition().catch((error: unknown) => {
@@ -233,17 +319,20 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
         this.markerCluster.zoomToShowLayer(marker, () => marker.openPopup());
       }
     }
+    this.scheduleMapInvalidation('facility-selection', 320);
     this.changeDetector.markForCheck();
   }
 
   toggleSheet(): void {
     this.sheetExpanded = !this.sheetExpanded;
+    this.scheduleMapInvalidation('facility-sheet-toggle', 320);
   }
 
   closeFacilitySheet(): void {
     this.selectedFacility = null;
     this.sheetExpanded = false;
     this.map?.closePopup();
+    this.scheduleMapInvalidation('facility-sheet-close', 320);
   }
 
   zoomMap(direction: 1 | -1): void {

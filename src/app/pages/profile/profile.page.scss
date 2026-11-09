@@ -21,5 +21,6 @@
 .privacy-note ion-icon { color: #358c7b; }
 .guest-card { display: flex; min-height: 380px; flex-direction: column; align-items: center; justify-content: center; padding: 25px; border: 1px solid #e8edf1; border-radius: 17px; background: white; text-align: center; }
 .guest-card .avatar { margin-bottom: 20px; color: #1976d2; border: 0; background: #eaf5fc; }
+.guest-card .guest-logo { object-fit: contain; }
 .guest-card .eyebrow { color: #298d7d; }
 .guest-card > p:not(.eyebrow) { max-width: 360px; color: #778995; font-size: 13px; line-height: 1.5; }

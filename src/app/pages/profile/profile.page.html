@@ -25,7 +25,7 @@
       <ion-button class="signout-button" fill="outline" expand="block" (click)="signOut()"><ion-icon slot="start" name="log-out-outline"></ion-icon>Sign out</ion-button>
       <p class="privacy-note"><ion-icon name="shield-checkmark-outline"></ion-icon> CareFinder does not collect or store medical records or diagnoses.</p>
     } @else {
-      <section class="guest-card"><span class="avatar"><ion-icon name="person-outline"></ion-icon></span><p class="eyebrow">YOUR CAREFINDER ACCOUNT</p><h1>Browse as a guest</h1><p>Create an account to save facilities and sync your list across devices.</p><ion-button routerLink="/auth">Sign in or register</ion-button></section>
+      <section class="guest-card"><img class="avatar guest-logo" src="assets/branding/carefinder-logo.png" alt="CareFinder"><p class="eyebrow">YOUR CAREFINDER ACCOUNT</p><h1>Browse as a guest</h1><p>Create an account to save facilities and sync your list across devices.</p><ion-button routerLink="/auth">Sign in or register</ion-button></section>
     }
   </main>
 </ion-content>

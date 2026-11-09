@@ -30,14 +30,10 @@
 }
 
 .brand-mark {
-  display: grid;
   width: 34px;
   height: 34px;
-  place-items: center;
-  border-radius: 11px;
-  color: white;
-  background: #1976d2;
-  font-size: 19px;
+  flex: 0 0 auto;
+  object-fit: contain;
 }
 
 .profile-button {

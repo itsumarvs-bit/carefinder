@@ -4,14 +4,20 @@ import { describe, expect, it } from 'vitest';
 import { AppComponent } from './app.component';
 
 describe('AppComponent', () => {
-  it('should create the app', async () => {
+  it('plays the intro once per app launch, even if the root component is recreated', async () => {
     await TestBed.configureTestingModule({
       imports: [AppComponent],
       providers: [provideRouter([])],
     }).compileComponents();
 
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
+    const firstFixture = TestBed.createComponent(AppComponent);
+    firstFixture.detectChanges();
+    expect(firstFixture.componentInstance.introVisible).toBe(true);
+    firstFixture.destroy();
+
+    const nextFixture = TestBed.createComponent(AppComponent);
+    nextFixture.detectChanges();
+    expect(nextFixture.componentInstance.introVisible).toBe(false);
+    nextFixture.destroy();
   });
 });
