@@ -18,7 +18,7 @@ import {
 } from '../../core/navigation-geometry';
 import { NavigationRoute, RoutingService } from '../../core/routing.service';
 import { VoiceNavigationService } from '../../core/voice-navigation.service';
-import { directionsUrl } from '../../core/facility-utils';
+import { directionsUrl, facilityCoordinates, normalizeFacilityCoordinates } from '../../core/facility-utils';
 import { Facility, FacilityCategory, categoryLabels } from '../../models/facility.model';
 
 const categoryNames: Record<Facility['category'], string> = {
@@ -64,6 +64,8 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   private invalidateTimer?: ReturnType<typeof setTimeout>;
   private pageVisible = false;
   private lastTileErrorLogAt = 0;
+  private lastFacilitySnapshotDiagnostics = '';
+  private lastMarkerDiagnostics = '';
   private markerCluster?: L.MarkerClusterGroup;
   private markers: L.Marker[] = [];
   private openMapMarkers: L.Marker[] = [];
@@ -122,7 +124,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   get visibleFacilities(): Facility[] {
     return [
       ...this.facilities.filter((facility) =>
-        !facility.isSample && typeof facility.latitude === 'number' && typeof facility.longitude === 'number'),
+        !facility.isSample && facilityCoordinates(facility) !== null),
       ...this.openMapFacilities,
     ];
   }
@@ -146,9 +148,22 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     });
     this.facilitiesSubscription = this.facilitiesService.watchActiveFacilities().subscribe({
       next: (facilities) => {
-        this.facilities = facilities;
+        this.facilities = facilities.map(normalizeFacilityCoordinates);
+        const activeFacilities = this.facilities.filter((facility) => facility.isActive);
+        const validCoordinateCount = activeFacilities.filter((facility) => facilityCoordinates(facility) !== null).length;
+        const snapshotDiagnostics = {
+          returned: facilities.length,
+          active: activeFacilities.length,
+          validCoordinates: validCoordinateCount,
+          invalidCoordinates: activeFacilities.length - validCoordinateCount,
+        };
+        const snapshotDiagnosticsKey = JSON.stringify(snapshotDiagnostics);
+        if (snapshotDiagnosticsKey !== this.lastFacilitySnapshotDiagnostics) {
+          console.info('[CareFinder map] Firestore facility snapshot', snapshotDiagnostics);
+          this.lastFacilitySnapshotDiagnostics = snapshotDiagnosticsKey;
+        }
         if (this.selectedFacility) {
-          this.selectedFacility = [...facilities, ...this.openMapFacilities]
+          this.selectedFacility = [...this.facilities, ...this.openMapFacilities]
             .find((facility) => facility.id === this.selectedFacility?.id) ?? null;
         }
         this.selectDestinationFromUrl();
@@ -312,9 +327,10 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   selectFacility(facility: Facility): void {
     if (this.selectedFacility?.id !== facility.id) this.sheetExpanded = false;
     this.selectedFacility = facility;
-    if (this.map && typeof facility.latitude === 'number' && typeof facility.longitude === 'number') {
+    const coordinates = facilityCoordinates(facility);
+    if (this.map && coordinates) {
       const marker = this.facilityMarkers.get(facility.id) ?? this.openMapMarkerById.get(facility.id);
-      this.map.flyTo([facility.latitude, facility.longitude], Math.max(15, this.map.getZoom()), { duration: 0.35 });
+      this.map.flyTo([coordinates.latitude, coordinates.longitude], Math.max(15, this.map.getZoom()), { duration: 0.35 });
       if (!this.mobileViewport && marker && this.markerCluster) {
         this.markerCluster.zoomToShowLayer(marker, () => marker.openPopup());
       }
@@ -349,10 +365,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   canNavigate(facility: Facility): boolean {
-    return typeof facility.latitude === 'number' && Number.isFinite(facility.latitude)
-      && facility.latitude >= -90 && facility.latitude <= 90
-      && typeof facility.longitude === 'number' && Number.isFinite(facility.longitude)
-      && facility.longitude >= -180 && facility.longitude <= 180;
+    return facilityCoordinates(facility) !== null;
   }
 
   get navigationVisible(): boolean {
@@ -417,14 +430,12 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.changeDetector.markForCheck();
 
     try {
+      const destination = facilityCoordinates(facility);
+      if (!destination) throw new Error('This facility does not have valid coordinates.');
       const position = await this.locationService.getNavigationPosition();
       if (this.destroyed) return;
       this.navigationPosition = position;
       this.updateNavigationLocationMarker(position);
-      const destination = {
-        latitude: facility.latitude!,
-        longitude: facility.longitude!,
-      };
       const route = await this.routingService.getDrivingRoute({
         latitude: position.coords.latitude,
         longitude: position.coords.longitude,
@@ -835,9 +846,15 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.markerCluster.removeLayers(this.markers);
     this.markers = [];
     this.facilityMarkers.clear();
-    for (const facility of this.facilities.filter((item) => !item.isSample && this.matchesFacility(item))) {
-      if (typeof facility.latitude !== 'number' || typeof facility.longitude !== 'number') continue;
-      const marker = L.marker([facility.latitude, facility.longitude], {
+    const candidates = this.facilities.filter((item) => item.isActive && !item.isSample && this.matchesFacility(item));
+    let invalidCoordinates = 0;
+    for (const facility of candidates) {
+      const coordinates = facilityCoordinates(facility);
+      if (!coordinates) {
+        invalidCoordinates += 1;
+        continue;
+      }
+      const marker = L.marker([coordinates.latitude, coordinates.longitude], {
         icon: categoryMarkerIcon(facility.category),
         keyboard: true,
         title: this.facilityName(facility),
@@ -850,6 +867,18 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       this.facilityMarkers.set(facility.id, marker);
     }
     this.markerCluster.addLayers(this.markers);
+    const diagnostics = {
+      candidates: candidates.length,
+      invalidCoordinates,
+      markersCreated: this.markers.length,
+      markerLayerAdded: this.map.hasLayer(this.markerCluster),
+      markersInLayer: this.markerCluster.getLayers().length,
+    };
+    const diagnosticsKey = JSON.stringify(diagnostics);
+    if (diagnosticsKey !== this.lastMarkerDiagnostics) {
+      console.info('[CareFinder map] Facility marker batch rendered', diagnostics);
+      this.lastMarkerDiagnostics = diagnosticsKey;
+    }
   }
 
   private matchesFacility(facility: Facility, query = this.searchText.trim().toLocaleLowerCase()): boolean {
@@ -966,8 +995,9 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.markerCluster.removeLayers(this.openMapMarkers);
     this.openMapMarkerById.clear();
     this.openMapMarkers = this.openMapFacilities.filter((facility) => this.matchesFacility(facility)).flatMap((facility) => {
-      if (typeof facility.latitude !== 'number' || typeof facility.longitude !== 'number') return [];
-      const marker = L.marker([facility.latitude, facility.longitude], {
+      const coordinates = facilityCoordinates(facility);
+      if (!coordinates) return [];
+      const marker = L.marker([coordinates.latitude, coordinates.longitude], {
         icon: categoryMarkerIcon(facility.category),
         keyboard: true,
         title: this.facilityName(facility),

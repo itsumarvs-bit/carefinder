@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Facility } from '../models/facility.model';
-import { facilityDistanceKm, facilityOpenStatus } from './facility-utils';
+import {
+  facilityCoordinates, facilityDistanceKm, facilityOpenStatus, normalizeFacilityCoordinates,
+} from './facility-utils';
 
 describe('facilityDistanceKm', () => {
   it('calculates approximate great-circle distance', () => {
@@ -19,6 +21,30 @@ describe('facilityDistanceKm', () => {
       isVerified: false, isActive: true,
     };
     expect(facilityDistanceKm(from, facility)).toBeNull();
+  });
+});
+
+describe('facilityCoordinates', () => {
+  it('accepts numeric strings from existing Firestore records', () => {
+    expect(facilityCoordinates({ latitude: '14.5995', longitude: '120.9842' } as unknown as Facility))
+      .toEqual({ latitude: 14.5995, longitude: 120.9842 });
+  });
+
+  it('rejects non-finite and out-of-range coordinates', () => {
+    expect(facilityCoordinates({ latitude: Number.NaN, longitude: 120 } )).toBeNull();
+    expect(facilityCoordinates({ latitude: 91, longitude: 120 })).toBeNull();
+    expect(facilityCoordinates({ latitude: 14, longitude: -181 })).toBeNull();
+  });
+
+  it('normalizes valid coordinates without changing invalid records', () => {
+    const facility: Facility = {
+      id: 'test', name: 'Test', category: 'clinic', address: 'Test address',
+      latitude: 14, longitude: 120, isVerified: false, isActive: true,
+    };
+    expect(normalizeFacilityCoordinates(facility)).toEqual(facility);
+    expect(normalizeFacilityCoordinates({
+      ...facility, latitude: '14.5', longitude: '120.5',
+    } as unknown as Facility)).toMatchObject({ latitude: 14.5, longitude: 120.5 });
   });
 });
 

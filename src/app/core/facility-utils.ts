@@ -20,6 +20,19 @@ export function facilityDistanceKm(from: GeolocationCoordinates | null | undefin
   return 6371 * 2 * Math.atan2(Math.sqrt(safeA), Math.sqrt(1 - safeA));
 }
 
+export function facilityCoordinates(
+  facility: Pick<Facility, 'latitude' | 'longitude'>,
+): { latitude: number; longitude: number } | null {
+  const latitude = parseCoordinate(facility.latitude, -90, 90);
+  const longitude = parseCoordinate(facility.longitude, -180, 180);
+  return latitude === null || longitude === null ? null : { latitude, longitude };
+}
+
+export function normalizeFacilityCoordinates(facility: Facility): Facility {
+  const coordinates = facilityCoordinates(facility);
+  return coordinates ? { ...facility, ...coordinates } : facility;
+}
+
 export function facilityOpenStatus(facility: Facility, now = new Date()): string {
   const hours = facility.operatingHours;
   if (!hours || !facility.timeZone) return 'Hours unavailable';
@@ -84,8 +97,18 @@ function toMinutes(value?: string): number {
 }
 
 export function directionsUrl(facility: Facility): string {
-  const destination = typeof facility.latitude === 'number' && typeof facility.longitude === 'number'
-    ? `${facility.latitude},${facility.longitude}`
+  const coordinates = facilityCoordinates(facility);
+  const destination = coordinates
+    ? `${coordinates.latitude},${coordinates.longitude}`
     : facility.address;
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}`;
+}
+
+function parseCoordinate(value: unknown, minimum: number, maximum: number): number | null {
+  if (typeof value !== 'number' && typeof value !== 'string') return null;
+  if (typeof value === 'string' && !value.trim()) return null;
+  const coordinate = Number(value);
+  return Number.isFinite(coordinate) && coordinate >= minimum && coordinate <= maximum
+    ? coordinate
+    : null;
 }
