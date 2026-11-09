@@ -1,10 +1,16 @@
 import { Injectable } from '@angular/core';
+
 import { FirebaseApp, initializeApp } from 'firebase/app';
-import { Auth, getAuth } from 'firebase/auth';
+
+import { Auth, initializeAuth, browserLocalPersistence } from 'firebase/auth';
+
 import { Firestore, initializeFirestore } from 'firebase/firestore';
+
 import { environment } from '../../environments/environment';
 
-@Injectable({ providedIn: 'root' })
+@Injectable({
+  providedIn: 'root',
+})
 export class FirebaseService {
   readonly isConfigured = Boolean(
     environment.firebase.apiKey &&
@@ -17,7 +23,11 @@ export class FirebaseService {
     ? initializeApp(environment.firebase)
     : null;
 
-  readonly auth: Auth | null = this.app ? getAuth(this.app) : null;
+  readonly auth: Auth | null = this.app
+    ? initializeAuth(this.app, {
+        persistence: browserLocalPersistence,
+      })
+    : null;
 
   readonly firestore: Firestore | null = this.app
     ? initializeFirestore(this.app, {
@@ -27,11 +37,16 @@ export class FirebaseService {
 
   constructor() {
     console.log('[CareFinder] Firebase configured:', this.isConfigured);
+
     console.log(
       '[CareFinder] Firebase project:',
       environment.firebase.projectId,
     );
+
+    console.log('[CareFinder] Authentication initialized:', Boolean(this.auth));
+
     console.log('[CareFinder] Firestore initialized:', Boolean(this.firestore));
+
     console.log('[CareFinder] Firestore transport: Long Polling');
   }
 }
