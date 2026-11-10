@@ -66,6 +66,50 @@ describe('RoutingService', () => {
     });
   });
 
+  it('requests driving distances for all supplied destinations in one matrix call', async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify({
+      distances: [[500, null]],
+      durations: [[120, null]],
+    }), { status: 200 }));
+
+    const matrix = await new RoutingService().getDrivingDistanceMatrix(
+      { latitude: 14, longitude: 121 },
+      [
+        { latitude: 14.001, longitude: 121.001 },
+        { latitude: 14.002, longitude: 121.002 },
+      ],
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.openrouteservice.org/v2/matrix/driving-car',
+      expect.objectContaining({
+        method: 'POST',
+        headers: { Authorization: 'test-api-key', 'Content-Type': 'application/json' },
+      }),
+    );
+    const request = fetchMock.mock.calls[0]?.[1];
+    expect(JSON.parse(String(request?.body))).toEqual({
+      locations: [[121, 14], [121.001, 14.001], [121.002, 14.002]],
+      sources: ['0'],
+      destinations: ['1', '2'],
+      metrics: ['distance', 'duration'],
+    });
+    expect(matrix).toEqual([{ distance: 500, duration: 120 }, null]);
+  });
+
+  it('rejects invalid or oversized driving distance batches before fetching', async () => {
+    await expect(new RoutingService().getDrivingDistanceMatrix(
+      { latitude: 14, longitude: 121 },
+      [],
+    )).rejects.toThrow('between 1 and');
+
+    await expect(new RoutingService().getDrivingDistanceMatrix(
+      { latitude: 91, longitude: 121 },
+      [{ latitude: 14, longitude: 121 }],
+    )).rejects.toThrow('current location does not have valid coordinates');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('reports an unconfigured API key without making a network request', async () => {
     environment.openRouteServiceApiKey = '';
 

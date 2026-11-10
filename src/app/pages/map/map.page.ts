@@ -13,11 +13,13 @@ import { Subscription } from 'rxjs';
 import { cloudinaryImageUrl } from '../../core/cloudinary.service';
 import { FacilityService } from '../../core/facility.service';
 import { LocationService } from '../../core/location.service';
+import { selectNearestHospital } from '../../core/nearest-hospital';
+import type { HospitalRouteDistance } from '../../core/nearest-hospital';
 import {
   cumulativeRouteDistances, distanceBetween, geometryProgressToRouteMeters, isArrivalPosition, nearestRoutePosition,
   routeStepDistance, rerouteCooldownMilliseconds, shouldReroute,
 } from '../../core/navigation-geometry';
-import { NavigationRoute, RoutingService } from '../../core/routing.service';
+import { drivingMatrixDestinationBatchSize, NavigationRoute, RoutingService } from '../../core/routing.service';
 import { VoiceNavigationService } from '../../core/voice-navigation.service';
 import { directionsUrl, facilityCoordinates, normalizeFacilityCoordinates } from '../../core/facility-utils';
 import { Facility, FacilityCategory, categoryLabels } from '../../models/facility.model';
@@ -102,6 +104,14 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   private rerouting = false;
   private lastRerouteAt = 0;
   private readonly announcedThresholds = new Set<string>();
+  private userPosition?: GeolocationPosition | Position;
+  nearestHospital?: Facility;
+  nearestHospitalDistanceMeters = 0;
+  nearestHospitalDurationSeconds = 0;
+  nearestHospitalApproximate = false;
+  nearestHospitalRouteIncomplete = false;
+  nearestHospitalMessage = 'Find the nearest hospital from your current location.';
+  private nearestHospitalMarker?: LeafletTypes.Marker;
 
   readonly categoryLabels = categoryLabels;
   readonly categoryOptions: Array<{ id: FacilityCategory | 'all'; label: string }> = [
@@ -144,7 +154,24 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   get listedFacilities(): Facility[] {
-    return this.filteredFacilities.slice(0, this.maxListItems);
+    const facilities = this.filteredFacilities.slice(0, this.maxListItems);
+    if (!this.userPosition) return facilities;
+    const origin = {
+      latitude: this.userPosition.coords.latitude,
+      longitude: this.userPosition.coords.longitude,
+    };
+    return [...facilities].sort((left, right) =>
+      distanceBetween(origin, facilityCoordinates(left)!) - distanceBetween(origin, facilityCoordinates(right)!));
+  }
+
+  facilityDistanceLabel(facility: Facility): string {
+    if (!this.userPosition) return '';
+    const coordinates = facilityCoordinates(facility);
+    if (!coordinates) return '';
+    return formatDistance(distanceBetween({
+      latitude: this.userPosition.coords.latitude,
+      longitude: this.userPosition.coords.longitude,
+    }, coordinates));
   }
 
   ngOnInit(): void {
@@ -366,6 +393,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.loadingLocation = true;
     try {
       const position = await this.locationService.getCurrentPosition();
+      this.userPosition = position;
       if (!this.map) return;
       const point: LeafletTypes.LatLngExpression = [position.coords.latitude, position.coords.longitude];
       this.map.setView(point, 14);
@@ -476,6 +504,133 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     return this.voiceMuted ? 'Unmute voice' : 'Mute voice';
   }
 
+  async findNearestHospital(): Promise<void> {
+    this.loadingLocation = true;
+    try {
+      const position = await this.locationService.getCurrentPosition();
+      this.userPosition = position;
+      this.locationMessage = 'Checking nearby hospitals using your current location and available road routes.';
+      this.nearestHospitalMessage = 'Checking nearby hospitals…';
+      const hospitals = this.facilities.filter((facility) => facility.isActive && !facility.isSample
+        && facility.category === 'hospital' && facilityCoordinates(facility) !== null);
+      if (!hospitals.length) {
+        this.nearestHospital = undefined;
+        this.nearestHospitalDistanceMeters = 0;
+        this.nearestHospitalDurationSeconds = 0;
+        this.nearestHospitalApproximate = false;
+        this.nearestHospitalRouteIncomplete = false;
+        this.nearestHospitalMessage = 'No registered hospitals were found in the current CareFinder database.';
+        this.locationMessage = 'No hospitals are available in the current database.';
+        this.updateNearestHospitalMarker();
+        this.changeDetector.markForCheck();
+        return;
+      }
+
+      const start = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      const routeDistances = new Map<string, HospitalRouteDistance>();
+      let failedRouteBatches = 0;
+      let unavailableRoutes = false;
+      for (let offset = 0; offset < hospitals.length; offset += drivingMatrixDestinationBatchSize) {
+        const batch = hospitals.slice(offset, offset + drivingMatrixDestinationBatchSize);
+        try {
+          const routes = await this.routingService.getDrivingDistanceMatrix(
+            start,
+            batch.map((facility) => facilityCoordinates(facility)!),
+          );
+          batch.forEach((facility, index) => {
+            const route = routes[index];
+            if (route) routeDistances.set(facility.id, route);
+            else unavailableRoutes = true;
+          });
+        } catch (error) {
+          failedRouteBatches += 1;
+          console.warn('Driving distances could not be calculated for a hospital batch.', error);
+        }
+      }
+
+      const result = selectNearestHospital(this.facilities, start, routeDistances);
+      if (!result) {
+        this.nearestHospital = undefined;
+        this.nearestHospitalDistanceMeters = 0;
+        this.nearestHospitalDurationSeconds = 0;
+        this.nearestHospitalApproximate = false;
+        this.nearestHospitalRouteIncomplete = false;
+        this.nearestHospitalMessage = 'No registered hospitals with valid coordinates were found in the current CareFinder database.';
+        this.locationMessage = 'No hospitals are available in the current database.';
+        this.updateNearestHospitalMarker();
+        this.changeDetector.markForCheck();
+        return;
+      }
+
+      this.nearestHospital = result.facility;
+      this.nearestHospitalDistanceMeters = result.distance;
+      this.nearestHospitalDurationSeconds = result.duration;
+      this.nearestHospitalApproximate = result.approximate;
+      this.nearestHospitalRouteIncomplete = !result.approximate && (failedRouteBatches > 0 || unavailableRoutes);
+      const label = result.approximate
+        ? 'Approximate straight-line distance'
+        : this.nearestHospitalRouteIncomplete
+          ? 'Shortest available driving route'
+          : 'Driving route';
+      const distanceText = formatDistance(result.distance);
+      this.nearestHospitalMessage = `${this.nearestHospitalRouteIncomplete ? 'Hospital with the shortest available route' : 'Nearest hospital'}: ${this.facilityName(result.facility)} (${label}: ${distanceText}${result.approximate ? '' : ` • ${formatDuration(result.duration)}`}).`;
+      this.locationMessage = result.approximate
+        ? `${this.facilityName(result.facility)} is the nearest hospital by approximate straight-line distance; no driving routes were available.`
+        : this.nearestHospitalRouteIncomplete
+          ? `${this.facilityName(result.facility)} has the shortest driving route among hospitals with route data. Some hospitals had no route or could not be compared.`
+          : `${this.facilityName(result.facility)} is the nearest hospital by driving route.`;
+      this.selectedFacility = result.facility;
+      this.sheetExpanded = true;
+      this.updateNearestHospitalMarker();
+      const coordinates = facilityCoordinates(result.facility);
+      if (this.map && coordinates) {
+        this.map.flyTo([coordinates.latitude, coordinates.longitude], Math.max(14, this.map.getZoom()), { duration: 0.5 });
+      }
+      this.changeDetector.markForCheck();
+    } catch (error) {
+      this.nearestHospital = undefined;
+      this.nearestHospitalRouteIncomplete = false;
+      const message = error instanceof Error ? error.message : 'Could not determine your current location.';
+      this.nearestHospitalMessage = `Nearest hospital is unavailable: ${message}`;
+      this.locationMessage = message;
+      this.updateNearestHospitalMarker();
+      this.changeDetector.markForCheck();
+    } finally {
+      this.loadingLocation = false;
+      this.changeDetector.markForCheck();
+    }
+  }
+
+  private updateNearestHospitalMarker(): void {
+    if (!this.map) return;
+    if (!this.nearestHospital) {
+      this.nearestHospitalMarker?.remove();
+      this.nearestHospitalMarker = undefined;
+      return;
+    }
+    const coordinates = facilityCoordinates(this.nearestHospital);
+    if (!coordinates) {
+      this.nearestHospitalMarker?.remove();
+      this.nearestHospitalMarker = undefined;
+      return;
+    }
+    const point: LeafletTypes.LatLngExpression = [coordinates.latitude, coordinates.longitude];
+    const markerLabel = this.nearestHospitalRouteIncomplete ? 'ROUTE' : 'NEAREST';
+    if (!this.nearestHospitalMarker) {
+      this.nearestHospitalMarker = L.marker(point, {
+        icon: nearestHospitalMarkerIcon(markerLabel),
+        pane: 'markerPane',
+        keyboard: true,
+        title: `${this.facilityName(this.nearestHospital)} - nearest hospital`,
+      }).addTo(this.map);
+      this.nearestHospitalMarker.bindPopup(`${markerLabel === 'NEAREST' ? 'Nearest hospital' : 'Hospital with shortest available route'}: ${this.facilityName(this.nearestHospital)}`);
+      return;
+    }
+    this.nearestHospitalMarker.setLatLng(point);
+    this.nearestHospitalMarker.setIcon(nearestHospitalMarkerIcon(markerLabel));
+    this.nearestHospitalMarker.setPopupContent(`${markerLabel === 'NEAREST' ? 'Nearest hospital' : 'Hospital with shortest available route'}: ${this.facilityName(this.nearestHospital)}`);
+  }
+
   async startNavigation(): Promise<void> {
     const facility = this.selectedFacility;
     if (!facility || !this.canNavigate(facility) || this.navigationStatus !== 'idle') return;
@@ -491,6 +646,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       const destination = facilityCoordinates(facility);
       if (!destination) throw new Error('This facility does not have valid coordinates.');
       const position = await this.locationService.getNavigationPosition();
+      this.userPosition = position;
       if (this.destroyed) return;
       this.navigationPosition = position;
       this.updateNavigationLocationMarker(position);
@@ -549,6 +705,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.navigationLoading = true;
     try {
       const position = await this.locationService.getNavigationPosition();
+      this.userPosition = position;
       if (this.destroyed) return;
       this.navigationPosition = position;
       this.updateNavigationLocationMarker(position);
@@ -658,6 +815,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     if (this.destroyed || this.navigationStatus !== 'navigating' || !this.navigationRoute || !this.navigationFacility) return;
     const { latitude, longitude, accuracy } = position.coords;
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+    this.userPosition = position;
     this.navigationPosition = position;
     this.updateNavigationLocationMarker(position);
     this.updateNavigationMetrics(position);
@@ -1302,6 +1460,16 @@ function categoryMarkerIcon(category: Facility['category']): LeafletTypes.DivIco
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -17],
+  });
+}
+
+function nearestHospitalMarkerIcon(label: string): LeafletTypes.DivIcon {
+  return L.divIcon({
+    className: 'nearest-hospital-marker',
+    html: `<span style="display:flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:50%;border:3px solid #fff;background:#d93d33;color:#fff;box-shadow:0 3px 10px rgba(217,61,51,.45);font-size:9px;font-weight:800;letter-spacing:.08em;">${label}</span>`,
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+    popupAnchor: [0, -18],
   });
 }
 

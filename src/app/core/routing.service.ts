@@ -1,5 +1,8 @@
 import { Injectable } from '@angular/core';
 import { environment } from '../../environments/environment';
+import type { HospitalRouteDistance } from './nearest-hospital';
+
+export const drivingMatrixDestinationBatchSize = 49;
 
 export interface NavigationStep {
   distance: number;
@@ -18,6 +21,78 @@ export interface NavigationRoute {
 
 @Injectable({ providedIn: 'root' })
 export class RoutingService {
+  async getDrivingDistanceMatrix(
+    start: { latitude: number; longitude: number },
+    destinations: Array<{ latitude: number; longitude: number }>,
+  ): Promise<Array<HospitalRouteDistance | null>> {
+    const apiKey = environment.openRouteServiceApiKey.trim();
+    if (!apiKey) {
+      throw new Error('OpenRouteService is not configured. Add an API key to src/environments/environment.ts before searching for hospitals.');
+    }
+    if (!destinations.length || destinations.length > drivingMatrixDestinationBatchSize) {
+      throw new Error(`Driving distance batches must contain between 1 and ${drivingMatrixDestinationBatchSize} destinations.`);
+    }
+    validateCoordinate(start.latitude, start.longitude, 'current location');
+    destinations.forEach((destination) => validateCoordinate(
+      destination.latitude, destination.longitude, 'facility',
+    ));
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20_000);
+    let response: Response;
+    try {
+      response = await fetch('https://api.openrouteservice.org/v2/matrix/driving-car', {
+        method: 'POST',
+        headers: {
+          Authorization: apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          locations: [
+            [start.longitude, start.latitude],
+            ...destinations.map((destination) => [destination.longitude, destination.latitude]),
+          ],
+          sources: ['0'],
+          destinations: destinations.map((_destination, index) => String(index + 1)),
+          metrics: ['distance', 'duration'],
+        }),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (controller.signal.aborted) {
+        throw new Error('OpenRouteService took too long to compare hospital routes. Check your connection and try again.');
+      }
+      throw new Error('Could not reach OpenRouteService. Check your internet connection and try again.');
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const payload: unknown = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(apiErrorMessage(payload) ?? `OpenRouteService could not compare hospital routes (${response.status}).`);
+    }
+
+    const matrix = recordAt(payload);
+    const distances = matrix?.['distances'];
+    const durations = matrix?.['durations'];
+    const distanceRow = Array.isArray(distances) ? distances[0] : undefined;
+    const durationRow = Array.isArray(durations) ? durations[0] : undefined;
+    if (!Array.isArray(distanceRow) || !Array.isArray(durationRow)
+      || distanceRow.length !== destinations.length || durationRow.length !== destinations.length) {
+      throw new Error('OpenRouteService returned an incomplete hospital distance matrix.');
+    }
+    return destinations.map((_destination, index) => {
+      const distance = distanceRow[index];
+      const duration = durationRow[index];
+      if (distance === null || duration === null) return null;
+      if (typeof distance !== 'number' || !Number.isFinite(distance) || distance < 0
+        || typeof duration !== 'number' || !Number.isFinite(duration) || duration < 0) {
+        throw new Error('OpenRouteService returned invalid hospital route metrics.');
+      }
+      return { distance, duration };
+    });
+  }
+
   async getDrivingRoute(
     start: { latitude: number; longitude: number },
     destination: { latitude: number; longitude: number },

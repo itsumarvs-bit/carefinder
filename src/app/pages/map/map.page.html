@@ -1,10 +1,10 @@
 <ion-content class="map-content">
   <main class="map-shell" [class.navigation-active]="navigationVisible">
-    <div class="map-heading"><div><p class="eyebrow">HEALTHCARE NEAR YOU</p><h1>Explore the map</h1></div><ion-button [disabled]="loadingLocation" (click)="useMyLocation()">@if (loadingLocation) {
+    <div class="map-heading"><div><p class="eyebrow">HEALTHCARE NEAR YOU</p><h1>Explore the map</h1></div><div class="top-actions"><ion-button class="emergency-button" color="danger" [disabled]="loadingLocation" (click)="findNearestHospital()"><ion-icon slot="start" name="medical-outline"></ion-icon>Find Nearest Hospital</ion-button><ion-button [disabled]="loadingLocation" (click)="useMyLocation()">@if (loadingLocation) {
     <ion-spinner name="crescent"></ion-spinner>
     }@if (!loadingLocation) {
     <ion-icon slot="start" name="locate-outline"></ion-icon>Use my location
-  }</ion-button></div>
+  }</ion-button></div></div>
   <p class="location-message"><ion-icon name="information-circle-outline"></ion-icon>{{ locationMessage }}</p>
   <div class="map-legend" aria-label="Facility category legend">
     @for (category of categoryOptions.slice(1); track category.id) {
@@ -45,6 +45,20 @@
       </div>
     </div>
     <aside class="facility-list">
+      @if (nearestHospital) {
+        <div class="nearest-hospital-card">
+          <div class="nearest-hospital-header">
+            <span class="nearest-badge"><ion-icon name="warning-outline"></ion-icon>{{ nearestHospitalRouteIncomplete ? 'ROUTE RESULT' : 'NEAREST' }}</span>
+            <span class="nearest-meta">@if (nearestHospitalApproximate) { Approximate distance } @else if (nearestHospitalRouteIncomplete) { Partial route data } @else { Driving distance }</span>
+          </div>
+          <strong>{{ facilityName(nearestHospital) }}</strong>
+          <p>{{ nearestHospitalMessage }}</p>
+          <div class="nearest-hospital-actions">
+            <button type="button" class="nearest-hospital-button" (click)="selectFacility(nearestHospital)">View on map</button>
+            <button type="button" class="nearest-hospital-button primary" (click)="selectedFacility = nearestHospital; startNavigation()">Navigate now</button>
+          </div>
+        </div>
+      }
       <h2>Facilities <span>{{ filteredFacilities.length }}</span></h2>
       <input class="facility-search" type="search" [value]="searchText" (input)="setSearch($event)" placeholder="Search name or address" aria-label="Search facilities by name or address">
       <div class="category-filters" aria-label="Filter by facility category">
@@ -70,6 +84,8 @@
           }
           <span class="map-facility-copy"><strong>{{ facilityName(facility) }}</strong>@if (facilityAddress(facility); as address) {
             <small>{{ address }}</small>
+          }@if (facilityDistanceLabel(facility); as distance) {
+            <small class="facility-distance">Approx. {{ distance }} straight-line</small>
           }<em><ion-icon [name]="categoryIcon(facility.category)"></ion-icon> {{ categoryLabels[facility.category] }}@if (facility.source === 'openstreetmap') { · OpenStreetMap }</em>@if (facility.contactNumber) {
             <small class="facility-contact">{{ facility.contactNumber }}</small>
           }</span>
@@ -99,6 +115,9 @@
           <div class="selected-copy">
             <div class="selected-meta">
               <span class="selected-category"><ion-icon [name]="categoryIcon(facility.category)"></ion-icon>{{ categoryLabels[facility.category] }}</span>
+              @if (nearestHospital?.id === facility.id) {
+                <span class="nearest-badge"><ion-icon name="warning-outline"></ion-icon>{{ nearestHospitalRouteIncomplete ? 'ROUTE RESULT' : 'NEAREST' }}</span>
+              }
               @if (facility.isVerified) {
                 <span class="verification verified"><ion-icon name="checkmark-circle"></ion-icon>Verified</span>
               } @else if (facility.source === 'openstreetmap') {
