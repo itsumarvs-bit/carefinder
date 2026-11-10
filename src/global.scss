@@ -69,19 +69,6 @@
 .facility-marker-clinic { background: #258875; }
 .facility-marker-pharmacy { background: #8a67a8; }
 .facility-marker-health_center { background: #d18439; }
-.carefinder-mobile-facility-marker { filter: drop-shadow(0 1px 3px rgb(25 54 72 / 55%)); }
-.leaflet-tooltip.facility-circle-label {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  color: #fff;
-  background: transparent;
-  box-shadow: none;
-  font: 800 11px/1 Arial, sans-serif;
-  pointer-events: none;
-  text-shadow: 0 1px 2px rgb(20 40 55 / 65%);
-}
-.leaflet-tooltip.facility-circle-label::before { display: none; }
 .facility-cluster { border: 0; background: transparent; }
 .facility-cluster span {
   display: grid;
@@ -96,8 +83,8 @@
   font-size: 12px;
   font-weight: 800;
 }
-.facility-cluster-medium span { width: 44px; height: 44px; background: #277e79; }
-.facility-cluster-large span { width: 50px; height: 50px; background: #315d7a; }
+.facility-cluster-medium span { width: 44px; height: 44px; background: #176dbb; }
+.facility-cluster-large span { width: 50px; height: 50px; background: #155fa9; }
 .leaflet-popup-content-wrapper { overflow: hidden; border-radius: 12px; }
 .leaflet-popup-content { width: min(320px, calc(100vw - 72px)) !important; margin: 0 !important; }
 .facility-popup { overflow: hidden; color: #405664; font-family: var(--ion-font-family); }

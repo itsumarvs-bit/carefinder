@@ -23,7 +23,16 @@ describe('facility marker clustering', () => {
     document.body.append(host);
 
     map = L.map(host, { zoomControl: false, attributionControl: false, maxZoom: 19 }).setView([0, 0], 5);
-    const cluster = L.markerClusterGroup({ maxClusterRadius: 80, chunkedLoading: false }).addTo(map);
+    const cluster = L.markerClusterGroup({
+      maxClusterRadius: 70,
+      zoomToBoundsOnClick: true,
+      spiderfyOnMaxZoom: true,
+      showCoverageOnHover: false,
+      removeOutsideVisibleBounds: true,
+      animate: false,
+      animateAddingMarkers: false,
+      chunkedLoading: false,
+    }).addTo(map);
     const markers = [L.marker([0, 0]), L.marker([0.001, 0.001])];
     cluster.addLayers(markers);
 
@@ -31,5 +40,13 @@ describe('facility marker clustering', () => {
     expect(parent).not.toBe(markers[0]);
     expect(parent).toBeInstanceOf(L.MarkerCluster);
     expect((parent as L.MarkerCluster).getChildCount()).toBe(2);
+
+    map.setZoom(19);
+    expect(cluster.getVisibleParent(markers[0]!)).toBe(markers[0]);
+
+    map.setZoom(5);
+    const reclusteredParent = cluster.getVisibleParent(markers[0]!);
+    expect(reclusteredParent).toBeInstanceOf(L.MarkerCluster);
+    expect((reclusteredParent as L.MarkerCluster).getChildCount()).toBe(2);
   });
 });
