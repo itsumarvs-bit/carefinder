@@ -68,4 +68,8 @@ h1 { margin: 0; color: #20394d; font-size: 27px; letter-spacing: -.6px; }
 .arrival-message { display: flex; align-items: center; gap: 8px; margin: 17px 0; color: #167856; font-size: 16px; font-weight: 750; }
 .arrival-message ion-icon { font-size: 23px; }
 .map-disclaimer { margin: 12px 0; color: #8b979e; font-size: 10px; line-height: 1.5; }
+.start-navigation-button { min-width: 190px; --background: #1976d2; --background-activated: #155fa9; --box-shadow: none; --color: #fff; --padding-start: 16px; --padding-end: 16px; font-size: 13px; font-weight: 750; white-space: nowrap; }
+.start-navigation-button::part(native) { gap: 8px; color: #fff; }
+.start-navigation-button ion-icon { flex: 0 0 auto; color: #fff; font-size: 20px; opacity: 1; }
+.navigation-button-label { display: inline-block; color: #fff; line-height: 1.2; opacity: 1; visibility: visible; white-space: nowrap; }
 @media(max-width: 760px), (max-height: 500px) and (orientation: landscape) { .map-shell { width: calc(100% - 26px); margin-top: 16px; } .map-layout { height: auto; min-height: 0; grid-template-columns: 1fr; } .map-host { height: 48vh; min-height: 320px; } .facility-list { max-height: 350px; border-top: 1px solid #e8edf1; border-left: 0; } .selected-card { flex-wrap: wrap; gap: 10px; } .selected-card > div { flex: 1 1 calc(100% - 70px); } .navigation-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

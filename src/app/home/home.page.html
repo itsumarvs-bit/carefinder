@@ -13,6 +13,7 @@
       <div class="search-row">
         <ion-searchbar
           [(ngModel)]="searchText"
+          (ngModelChange)="resetVisibleItemCount()"
           placeholder="Search facilities, services, or address"
           inputmode="search"
           aria-label="Search healthcare facilities">
@@ -38,18 +39,17 @@
         <span>Preview mode — displaying clearly labeled sample facilities. Configure Firebase to load live directory data.</span>
       </div>
     }
-
     <section class="category-section">
       <div class="section-heading">
         <div><p class="eyebrow">BROWSE BY TYPE</p><h2>What do you need?</h2></div>
         <a routerLink="/map" class="text-link">Explore map <ion-icon name="arrow-forward-outline"></ion-icon></a>
       </div>
       <div class="category-scroller">
-        @for (category of categories; track category) {
+        @for (category of categories; track category.id) {
           <button
             class="category-card"
             [class.active]="selectedCategory === category.id"
-            (click)="selectedCategory = category.id">
+            (click)="selectCategory(category.id)">
             <span class="category-icon"><ion-icon [name]="category.icon"></ion-icon></span>
             <span class="category-label">{{ category.label }}</span>
             @if (category.id !== 'all' && (facilities$ | async); as facilities) {
@@ -85,7 +85,7 @@
         }
         @if (getVisibleFacilities(facilities); as visible) {
           <div class="facility-grid">
-            @for (facility of visible; track facility) {
+            @for (facility of visible; track facility.id) {
               <article class="facility-card" [routerLink]="['/facility', facility.id]">
                 <div class="facility-visual" [class]="'facility-visual category-' + facility.category">
                   @if (facility.imageUrl) {
@@ -132,13 +132,22 @@
             </article>
           }
         </div>
-      }
-      @if (facilitiesLoaded && !loadError && getVisibleFacilities(facilities).length === 0) {
+          <ion-infinite-scroll
+            threshold="180px"
+            [disabled]="visible.length >= filteredFacilityCount(facilities)"
+            (ionInfinite)="loadMore($event)">
+            <ion-infinite-scroll-content
+              loadingSpinner="crescent"
+              loadingText="Loading more facilities...">
+            </ion-infinite-scroll-content>
+          </ion-infinite-scroll>
+        }
+      @if (facilitiesLoaded && !loadError && filteredFacilityCount(facilities) === 0) {
         <div class="empty-state">
           <span class="empty-icon"><ion-icon name="search-outline"></ion-icon></span>
           <h3>No facilities found</h3>
           <p>Try a different name, service, location, or category.</p>
-          <ion-button fill="clear" (click)="searchText = ''; selectedCategory = 'all'">Clear filters</ion-button>
+          <ion-button fill="clear" (click)="clearFilters()">Clear filters</ion-button>
         </div>
       }
     }

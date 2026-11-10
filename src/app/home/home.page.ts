@@ -3,7 +3,7 @@ import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import {
-  IonButton, IonContent, IonIcon, IonSearchbar, IonSpinner, ToastController,
+  IonButton, IonContent, IonIcon, IonInfiniteScroll, IonInfiniteScrollContent, IonSearchbar, IonSpinner, ToastController,
 } from '@ionic/angular';
 import { User } from 'firebase/auth';
 import { Observable, catchError, firstValueFrom, of, shareReplay, switchMap, tap } from 'rxjs';
@@ -20,7 +20,8 @@ import { Facility, FacilityCategory, categoryLabels } from '../models/facility.m
   templateUrl: './home.page.html',
   styleUrls: ['./home.page.scss'],
   imports: [
-    CommonModule, FormsModule, RouterLink, IonButton, IonContent, IonIcon, IonSearchbar, IonSpinner,
+    CommonModule, FormsModule, RouterLink, IonButton, IonContent, IonIcon, IonInfiniteScroll,
+    IonInfiniteScrollContent, IonSearchbar, IonSpinner,
   ],
 })
 export class HomePage {
@@ -60,14 +61,36 @@ export class HomePage {
 
   searchText = '';
   selectedCategory: FacilityCategory | 'all' = 'all';
+  visibleItemCount = 10;
   location: GeolocationCoordinates | null = null;
   locationMessage = '';
   loadError = '';
   facilitiesLoaded = false;
   locating = false;
 
+  private cachedFacilities?: Facility[];
+  private cachedSearchText = '';
+  private cachedCategory: FacilityCategory | 'all' = 'all';
+  private cachedLocation: GeolocationCoordinates | null = null;
+  private filteredFacilitiesCache: Facility[] = [];
+
   getVisibleFacilities(facilities: Facility[]): Facility[] {
+    return this.getFilteredFacilities(facilities).slice(0, this.visibleItemCount);
+  }
+
+  filteredFacilityCount(facilities: Facility[]): number {
+    return this.getFilteredFacilities(facilities).length;
+  }
+
+  private getFilteredFacilities(facilities: Facility[]): Facility[] {
     const term = this.searchText.trim().toLocaleLowerCase();
+    if (this.cachedFacilities === facilities
+      && this.cachedSearchText === term
+      && this.cachedCategory === this.selectedCategory
+      && this.cachedLocation === this.location) {
+      return this.filteredFacilitiesCache;
+    }
+
     const matching = facilities.filter((facility) => {
       const matchesCategory = this.selectedCategory === 'all' || facility.category === this.selectedCategory;
       const searchable = [
@@ -76,10 +99,44 @@ export class HomePage {
       ].filter(Boolean).join(' ').toLocaleLowerCase();
       return matchesCategory && (!term || searchable.includes(term));
     });
-    if (!this.location) return matching;
-    return matching.sort((a, b) =>
-      (facilityDistanceKm(this.location!, a) ?? Number.POSITIVE_INFINITY)
-      - (facilityDistanceKm(this.location!, b) ?? Number.POSITIVE_INFINITY));
+    if (this.location) {
+      matching.sort((a, b) =>
+        (facilityDistanceKm(this.location!, a) ?? Number.POSITIVE_INFINITY)
+        - (facilityDistanceKm(this.location!, b) ?? Number.POSITIVE_INFINITY));
+    }
+
+    this.cachedFacilities = facilities;
+    this.cachedSearchText = term;
+    this.cachedCategory = this.selectedCategory;
+    this.cachedLocation = this.location;
+    this.filteredFacilitiesCache = matching;
+    return this.filteredFacilitiesCache;
+  }
+
+  resetVisibleItemCount(): void {
+    this.visibleItemCount = 10;
+  }
+
+  selectCategory(category: FacilityCategory | 'all'): void {
+    this.selectedCategory = category;
+    this.resetVisibleItemCount();
+  }
+
+  clearFilters(): void {
+    this.searchText = '';
+    this.selectedCategory = 'all';
+    this.resetVisibleItemCount();
+  }
+
+  async loadMore(event: Event): Promise<void> {
+    this.visibleItemCount = Math.min(this.visibleItemCount + 10, this.filteredFacilitiesCache.length);
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    const target = event.target;
+    if (!target || !('complete' in target) || typeof target.complete !== 'function') {
+      throw new Error('The infinite-scroll event target cannot be completed.');
+    }
+    await target.complete();
   }
 
   distance(facility: Facility): number | null {

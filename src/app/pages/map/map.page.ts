@@ -35,6 +35,13 @@ const categoryIcons: Record<Facility['category'], string> = {
   health_center: 'medkit-outline',
 };
 
+const categoryMarkerColors: Record<Facility['category'], string> = {
+  hospital: '#2778a9',
+  clinic: '#258875',
+  pharmacy: '#8a67a8',
+  health_center: '#d18439',
+};
+
 type NavigationStatus = 'idle' | 'loading' | 'navigating' | 'paused' | 'arrived';
 
 @Component({
@@ -150,16 +157,29 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       next: (facilities) => {
         this.facilities = facilities.map(normalizeFacilityCoordinates);
         const activeFacilities = this.facilities.filter((facility) => facility.isActive);
-        const validCoordinateCount = activeFacilities.filter((facility) => facilityCoordinates(facility) !== null).length;
+        const markerCandidates = activeFacilities.filter((facility) => !facility.isSample);
+        const validCoordinateCount = markerCandidates.filter((facility) => facilityCoordinates(facility) !== null).length;
+        const categoryCounts = { hospital: 0, clinic: 0, pharmacy: 0, health_center: 0 };
+        let invalidCategories = 0;
+        for (const facility of activeFacilities) {
+          if (!isFacilityCategory(facility.category)) {
+            invalidCategories += 1;
+            continue;
+          }
+          categoryCounts[facility.category] += 1;
+        }
         const snapshotDiagnostics = {
           returned: facilities.length,
           active: activeFacilities.length,
+          sampleRecords: activeFacilities.length - markerCandidates.length,
+          categories: categoryCounts,
+          invalidCategories,
           validCoordinates: validCoordinateCount,
-          invalidCoordinates: activeFacilities.length - validCoordinateCount,
+          invalidCoordinates: markerCandidates.length - validCoordinateCount,
         };
         const snapshotDiagnosticsKey = JSON.stringify(snapshotDiagnostics);
         if (snapshotDiagnosticsKey !== this.lastFacilitySnapshotDiagnostics) {
-          console.info('[CareFinder map] Firestore facility snapshot', snapshotDiagnostics);
+          console.info('[CareFinder map] Facilities received', snapshotDiagnostics);
           this.lastFacilitySnapshotDiagnostics = snapshotDiagnosticsKey;
         }
         if (this.selectedFacility) {
@@ -242,8 +262,12 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       iconCreateFunction: createClusterIcon,
     }).addTo(this.map);
     this.map.on('moveend', () => this.scheduleOpenMapRefresh());
-    this.renderFacilityMarkers();
-    this.scheduleOpenMapRefresh();
+    this.map.whenReady(() => {
+      if (this.destroyed) return;
+      this.renderFacilityMarkers();
+      this.renderOpenMapMarkers();
+      this.scheduleOpenMapRefresh();
+    });
     this.scheduleMapInvalidation('map-initialized', 80);
   }
 
@@ -848,14 +872,29 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.facilityMarkers.clear();
     const candidates = this.facilities.filter((item) => item.isActive && !item.isSample && this.matchesFacility(item));
     let invalidCoordinates = 0;
+    let invalidCategories = 0;
     for (const facility of candidates) {
+      if (!isFacilityCategory(facility.category)) {
+        invalidCategories += 1;
+        continue;
+      }
       const coordinates = facilityCoordinates(facility);
       if (!coordinates) {
         invalidCoordinates += 1;
         continue;
       }
+      let icon: L.DivIcon;
+      try {
+        icon = categoryMarkerIcon(facility.category);
+      } catch (error) {
+        console.error('[CareFinder map] Facility marker icon creation failed.', {
+          category: facility.category,
+          error,
+        });
+        throw error;
+      }
       const marker = L.marker([coordinates.latitude, coordinates.longitude], {
-        icon: categoryMarkerIcon(facility.category),
+        icon,
         keyboard: true,
         title: this.facilityName(facility),
       });
@@ -870,9 +909,11 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     const diagnostics = {
       candidates: candidates.length,
       invalidCoordinates,
+      invalidCategories,
       markersCreated: this.markers.length,
-      markerLayerAdded: this.map.hasLayer(this.markerCluster),
-      markersInLayer: this.markerCluster.getLayers().length,
+      markersAddedToCluster: this.markers.length,
+      clusterAttachedToMap: this.map.hasLayer(this.markerCluster),
+      totalMarkersInCluster: this.markerCluster.getLayers().length,
     };
     const diagnosticsKey = JSON.stringify(diagnostics);
     if (diagnosticsKey !== this.lastMarkerDiagnostics) {
@@ -1075,23 +1116,31 @@ function escapeHtml(value: string): string {
   })[character] ?? character);
 }
 
+function isFacilityCategory(category: unknown): category is FacilityCategory {
+  return typeof category === 'string' && Object.prototype.hasOwnProperty.call(categoryMarkerColors, category);
+}
+
 function categoryMarkerIcon(category: Facility['category']): L.DivIcon {
+  const color = categoryMarkerColors[category];
   return L.divIcon({
     className: 'facility-marker',
-    html: `<span class="facility-marker-glyph facility-marker-${category}" role="img" aria-label="${categoryNames[category]}">${categorySvg(category)}</span>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 15],
-    popupAnchor: [0, -15],
+    html: `<span class="facility-marker-glyph facility-marker-${category}" role="img" aria-label="${categoryNames[category]}" style="display:flex;width:36px;height:36px;box-sizing:border-box;align-items:center;justify-content:center;border:2px solid #fff;border-radius:50%;color:#fff;background:${color};box-shadow:0 1px 5px rgba(25,54,72,.4)">${categorySvg(category)}</span>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -18],
   });
 }
 
 function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
   const count = cluster.getChildCount();
   const size = count >= 100 ? 'large' : count >= 10 ? 'medium' : 'small';
+  const diameter = size === 'large' ? 50 : size === 'medium' ? 44 : 38;
+  const background = size === 'large' ? '#315d7a' : size === 'medium' ? '#277e79' : '#327fa4';
   return L.divIcon({
     className: `facility-cluster facility-cluster-${size}`,
-    html: `<span aria-label="${count} facilities">${count}</span>`,
-    iconSize: [50, 50],
+    html: `<span role="img" aria-label="${count} facilities" style="display:flex;width:${diameter}px;height:${diameter}px;box-sizing:border-box;align-items:center;justify-content:center;border:3px solid #fff;border-radius:50%;color:#fff;background:${background};box-shadow:0 2px 7px rgba(25,54,72,.4);font:800 12px/1 Arial,sans-serif">${count}</span>`,
+    iconSize: [diameter, diameter],
+    iconAnchor: [diameter / 2, diameter / 2],
   });
 }
 
@@ -1102,7 +1151,7 @@ function categorySvg(category: Facility['category']): string {
     pharmacy: '<path d="M8 4h8a4 4 0 0 1 0 8H8a4 4 0 0 1 0-8Z"/><path d="m9 11 6-6"/>',
     health_center: '<path d="M9 4h6v5h5v6h-5v5H9v-5H4V9h5z"/>',
   };
-  return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[category]}</svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="display:block;flex:0 0 auto">${paths[category]}</svg>`;
 }
 
 function facilityPopup(facility: Facility): string {

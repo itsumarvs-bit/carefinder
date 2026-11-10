@@ -34,11 +34,13 @@
         <a class="primary-action" [href]="directions(facility)" target="_blank" rel="noopener noreferrer"><ion-icon name="navigate-outline"></ion-icon> Get directions</a>
         @if (hasValidCoordinates(facility)) {
           <ion-button class="primary-action in-app-navigation" [routerLink]="['/map']" [queryParams]="{ destination: facility.id }">
-            <ion-icon slot="start" name="navigate-circle-outline"></ion-icon> Start Navigation
+            <ion-icon slot="start" name="navigate-circle-outline"></ion-icon>
+            <span class="navigation-button-label">Start Navigation</span>
           </ion-button>
         } @else {
           <ion-button class="primary-action in-app-navigation" disabled>
-            <ion-icon slot="start" name="navigate-circle-outline"></ion-icon> Start Navigation
+            <ion-icon slot="start" name="navigate-circle-outline"></ion-icon>
+            <span class="navigation-button-label">Start Navigation</span>
           </ion-button>
         }
       </div>
