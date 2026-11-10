@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import {
   IonButton, IonContent, IonIcon, IonSpinner,
 } from '@ionic/angular';
+import { Capacitor } from '@capacitor/core';
 import type { Position } from '@capacitor/geolocation';
 import * as L from 'leaflet';
 import 'leaflet.markercluster';
@@ -42,6 +43,15 @@ const categoryMarkerColors: Record<Facility['category'], string> = {
   health_center: '#d18439',
 };
 
+const categoryMarkerLabels: Record<Facility['category'], string> = {
+  hospital: 'H',
+  clinic: 'C',
+  pharmacy: 'Rx',
+  health_center: 'HC',
+};
+
+type FacilityMapMarker = L.Marker | L.CircleMarker;
+
 type NavigationStatus = 'idle' | 'loading' | 'navigating' | 'paused' | 'arrived';
 
 @Component({
@@ -74,10 +84,12 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   private lastFacilitySnapshotDiagnostics = '';
   private lastMarkerDiagnostics = '';
   private markerCluster?: L.MarkerClusterGroup;
-  private markers: L.Marker[] = [];
-  private openMapMarkers: L.Marker[] = [];
-  private readonly facilityMarkers = new Map<string, L.Marker>();
-  private readonly openMapMarkerById = new Map<string, L.Marker>();
+  private markers: FacilityMapMarker[] = [];
+  private openMapMarkers: FacilityMapMarker[] = [];
+  private readonly facilityMarkers = new Map<string, FacilityMapMarker>();
+  private readonly openMapMarkerById = new Map<string, FacilityMapMarker>();
+  private diagnosticMarker?: L.CircleMarker;
+  private diagnosticMarkerEnabled = false;
   private facilitiesSubscription?: Subscription;
   private openMapRequest?: AbortController;
   private openMapRefreshTimer?: ReturnType<typeof setTimeout>;
@@ -146,6 +158,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   ngOnInit(): void {
+    this.diagnosticMarkerEnabled = this.route.snapshot.queryParamMap.get('debugMapMarker') === '1';
     this.route.queryParamMap.subscribe((params) => {
       const destinationId = params.get('destination');
       if (!destinationId) return;
@@ -159,6 +172,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
         const activeFacilities = this.facilities.filter((facility) => facility.isActive);
         const markerCandidates = activeFacilities.filter((facility) => !facility.isSample);
         const validCoordinateCount = markerCandidates.filter((facility) => facilityCoordinates(facility) !== null).length;
+        const likelyReversedCoordinates = markerCandidates.filter(hasLikelyReversedCoordinates).length;
         const categoryCounts = { hospital: 0, clinic: 0, pharmacy: 0, health_center: 0 };
         let invalidCategories = 0;
         for (const facility of activeFacilities) {
@@ -176,6 +190,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
           invalidCategories,
           validCoordinates: validCoordinateCount,
           invalidCoordinates: markerCandidates.length - validCoordinateCount,
+          likelyReversedCoordinates,
         };
         const snapshotDiagnosticsKey = JSON.stringify(snapshotDiagnostics);
         if (snapshotDiagnosticsKey !== this.lastFacilitySnapshotDiagnostics) {
@@ -252,20 +267,14 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       }
     });
     this.tileLayer.addTo(this.map);
-    this.markerCluster = L.markerClusterGroup({
-      maxClusterRadius: (zoom) => zoom < 8 ? 56 : 42,
-      chunkedLoading: true,
-      chunkInterval: 100,
-      chunkDelay: 25,
-      spiderfyOnMaxZoom: true,
-      showCoverageOnHover: false,
-      iconCreateFunction: createClusterIcon,
-    }).addTo(this.map);
+    this.syncMarkerRenderingMode();
     this.map.on('moveend', () => this.scheduleOpenMapRefresh());
     this.map.whenReady(() => {
       if (this.destroyed) return;
+      this.addDiagnosticMarker();
       this.renderFacilityMarkers();
       this.renderOpenMapMarkers();
+      this.logMapPosition('map-ready');
       this.scheduleOpenMapRefresh();
     });
     this.scheduleMapInvalidation('map-initialized', 80);
@@ -292,6 +301,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     const isMobile = this.isMobileMapLayout();
     if (isMobile !== this.mobileViewport) {
       this.mobileViewport = isMobile;
+      this.syncMarkerRenderingMode();
       this.renderFacilityMarkers();
       this.renderOpenMapMarkers();
     }
@@ -304,12 +314,118 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   @HostListener('window:orientationchange')
   onOrientationChange(): void {
     if (!this.pageVisible) return;
+    const isMobile = this.isMobileMapLayout();
+    if (isMobile !== this.mobileViewport) {
+      this.mobileViewport = isMobile;
+      this.syncMarkerRenderingMode();
+      this.renderFacilityMarkers();
+      this.renderOpenMapMarkers();
+    }
     if (!this.map) this.initializeMapWhenSized();
     else this.scheduleMapInvalidation('orientation-change', 250);
   }
 
+  private usesDirectMarkers(): boolean {
+    return Capacitor.isNativePlatform() || this.mobileViewport;
+  }
+
+  private syncMarkerRenderingMode(): void {
+    if (!this.map) return;
+    if (this.usesDirectMarkers()) {
+      this.markerCluster?.remove();
+      console.info('[CareFinder map] Using direct mobile facility markers.', {
+        platform: Capacitor.getPlatform(),
+        clusterAttachedToMap: false,
+      });
+      return;
+    }
+    if (!this.markerCluster) {
+      this.markerCluster = L.markerClusterGroup({
+        maxClusterRadius: (zoom) => zoom < 8 ? 56 : 42,
+        chunkedLoading: true,
+        chunkInterval: 100,
+        chunkDelay: 25,
+        spiderfyOnMaxZoom: true,
+        showCoverageOnHover: false,
+        iconCreateFunction: createClusterIcon,
+      }).addTo(this.map);
+    } else {
+      this.markerCluster.addTo(this.map);
+    }
+    console.info('[CareFinder map] Using clustered desktop facility markers.', {
+      platform: Capacitor.getPlatform(),
+      clusterAttachedToMap: this.map.hasLayer(this.markerCluster),
+    });
+  }
+
   private isMobileMapLayout(): boolean {
     return window.matchMedia('(max-width: 760px), (max-height: 500px) and (orientation: landscape)').matches;
+  }
+
+  private addDiagnosticMarker(): void {
+    if (!this.map || !this.diagnosticMarkerEnabled || this.diagnosticMarker) return;
+    this.diagnosticMarker = L.circleMarker([12.8797, 121.774], {
+      radius: 18,
+      color: '#fff',
+      weight: 4,
+      fillColor: '#e53935',
+      fillOpacity: 1,
+      opacity: 1,
+    }).addTo(this.map);
+    this.diagnosticMarker.bindTooltip('TEST', {
+      permanent: true,
+      direction: 'center',
+      className: 'facility-circle-label',
+      opacity: 1,
+    });
+    console.info('[CareFinder map] Diagnostic marker enabled at the initial map center.');
+  }
+
+  private logMapPosition(reason: string): void {
+    if (!this.map) return;
+    const center = this.map.getCenter();
+    console.info('[CareFinder map] Map position', {
+      reason,
+      zoom: this.map.getZoom(),
+      center: { latitude: center.lat, longitude: center.lng },
+    });
+  }
+
+  private addFacilityMarkers(markers: FacilityMapMarker[]): { direct: number; clustered: number } {
+    if (!this.map || !markers.length) return { direct: 0, clustered: 0 };
+    if (this.usesDirectMarkers()) {
+      markers.forEach((marker) => marker.addTo(this.map!));
+      return { direct: markers.filter((marker) => this.map!.hasLayer(marker)).length, clustered: 0 };
+    }
+
+    const desktopMarkers = markers.filter((marker): marker is L.Marker => marker instanceof L.Marker);
+    this.markerCluster?.addLayers(desktopMarkers);
+    return {
+      direct: 0,
+      clustered: desktopMarkers.filter((marker) => this.markerCluster?.hasLayer(marker)).length,
+    };
+  }
+
+  private removeFacilityMarkers(markers: FacilityMapMarker[]): void {
+    this.markerCluster?.removeLayers(
+      markers.filter((marker): marker is L.Marker => marker instanceof L.Marker),
+    );
+    markers.forEach((marker) => this.map?.removeLayer(marker));
+  }
+
+  private createFacilityMarker(facility: Facility, coordinates: L.LatLngExpression): FacilityMapMarker {
+    const marker = this.usesDirectMarkers()
+      ? createMobileFacilityMarker(coordinates, facility.category)
+      : L.marker(coordinates, {
+        icon: categoryMarkerIcon(facility.category),
+        keyboard: true,
+        title: this.facilityName(facility),
+      });
+    if (!this.usesDirectMarkers() && marker instanceof L.Marker) {
+      marker.bindPopup(facilityPopup(facility), { maxWidth: 340, minWidth: 250 });
+    }
+    marker.on('click', () => this.selectFacility(facility));
+    return marker;
   }
 
   ngOnDestroy(): void {
@@ -355,7 +471,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     if (this.map && coordinates) {
       const marker = this.facilityMarkers.get(facility.id) ?? this.openMapMarkerById.get(facility.id);
       this.map.flyTo([coordinates.latitude, coordinates.longitude], Math.max(15, this.map.getZoom()), { duration: 0.35 });
-      if (!this.mobileViewport && marker && this.markerCluster) {
+      if (!this.usesDirectMarkers() && marker instanceof L.Marker && this.markerCluster) {
         this.markerCluster.zoomToShowLayer(marker, () => marker.openPopup());
       }
     }
@@ -866,12 +982,13 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private renderFacilityMarkers(): void {
-    if (!this.map || !this.markerCluster) return;
-    this.markerCluster.removeLayers(this.markers);
+    if (!this.map) return;
+    this.removeFacilityMarkers(this.markers);
     this.markers = [];
     this.facilityMarkers.clear();
     const candidates = this.facilities.filter((item) => item.isActive && !item.isSample && this.matchesFacility(item));
     let invalidCoordinates = 0;
+    let likelyReversedCoordinates = 0;
     let invalidCategories = 0;
     for (const facility of candidates) {
       if (!isFacilityCategory(facility.category)) {
@@ -881,39 +998,36 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       const coordinates = facilityCoordinates(facility);
       if (!coordinates) {
         invalidCoordinates += 1;
+        if (hasLikelyReversedCoordinates(facility)) likelyReversedCoordinates += 1;
         continue;
       }
-      let icon: L.DivIcon;
+      let marker: FacilityMapMarker;
       try {
-        icon = categoryMarkerIcon(facility.category);
+        marker = this.createFacilityMarker(facility, [coordinates.latitude, coordinates.longitude]);
       } catch (error) {
-        console.error('[CareFinder map] Facility marker icon creation failed.', {
+        console.error('[CareFinder map] Facility marker creation failed.', {
           category: facility.category,
           error,
         });
         throw error;
       }
-      const marker = L.marker([coordinates.latitude, coordinates.longitude], {
-        icon,
-        keyboard: true,
-        title: this.facilityName(facility),
-      });
-      if (!this.mobileViewport) marker.bindPopup(facilityPopup(facility), { maxWidth: 340, minWidth: 250 });
-      marker.on('click', () => {
-        this.selectFacility(facility);
-      });
       this.markers.push(marker);
       this.facilityMarkers.set(facility.id, marker);
     }
-    this.markerCluster.addLayers(this.markers);
+    const added = this.addFacilityMarkers(this.markers);
     const diagnostics = {
-      candidates: candidates.length,
+      source: 'firestore',
+      facilitiesPassingFilters: candidates.length,
       invalidCoordinates,
+      likelyReversedCoordinates,
       invalidCategories,
       markersCreated: this.markers.length,
-      markersAddedToCluster: this.markers.length,
-      clusterAttachedToMap: this.map.hasLayer(this.markerCluster),
-      totalMarkersInCluster: this.markerCluster.getLayers().length,
+      markersDirectlyAddedToMap: added.direct,
+      markersAddedToCluster: added.clustered,
+      clusterAttachedToMap: this.markerCluster ? this.map.hasLayer(this.markerCluster) : false,
+      totalMarkersInCluster: this.markerCluster?.getLayers().length ?? 0,
+      zoom: this.map.getZoom(),
+      center: this.map.getCenter(),
     };
     const diagnosticsKey = JSON.stringify(diagnostics);
     if (diagnosticsKey !== this.lastMarkerDiagnostics) {
@@ -1032,26 +1146,48 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private renderOpenMapMarkers(): void {
-    if (!this.map || !this.markerCluster) return;
-    this.markerCluster.removeLayers(this.openMapMarkers);
+    if (!this.map) return;
+    this.removeFacilityMarkers(this.openMapMarkers);
     this.openMapMarkerById.clear();
-    this.openMapMarkers = this.openMapFacilities.filter((facility) => this.matchesFacility(facility)).flatMap((facility) => {
+    const candidates = this.openMapFacilities.filter((facility) => this.matchesFacility(facility));
+    let invalidCoordinates = 0;
+    let invalidCategories = 0;
+    this.openMapMarkers = candidates.flatMap((facility) => {
+      if (!isFacilityCategory(facility.category)) {
+        invalidCategories += 1;
+        return [];
+      }
       const coordinates = facilityCoordinates(facility);
-      if (!coordinates) return [];
-      const marker = L.marker([coordinates.latitude, coordinates.longitude], {
-        icon: categoryMarkerIcon(facility.category),
-        keyboard: true,
-        title: this.facilityName(facility),
-      });
-      if (!this.mobileViewport) marker.bindPopup(facilityPopup(facility), { maxWidth: 340, minWidth: 250 });
-      marker.on('click', () => {
-        this.selectFacility(facility);
-      });
-      if (!this.mobileViewport && this.selectedFacility?.id === facility.id) marker.openPopup();
+      if (!coordinates) {
+        invalidCoordinates += 1;
+        return [];
+      }
+      const marker = this.createFacilityMarker(facility, [coordinates.latitude, coordinates.longitude]);
+      if (!this.usesDirectMarkers() && marker instanceof L.Marker && this.selectedFacility?.id === facility.id) {
+        marker.openPopup();
+      }
       this.openMapMarkerById.set(facility.id, marker);
       return [marker];
     });
-    this.markerCluster.addLayers(this.openMapMarkers);
+    const added = this.addFacilityMarkers(this.openMapMarkers);
+    const diagnostics = {
+      source: 'openstreetmap',
+      facilitiesPassingFilters: candidates.length,
+      invalidCoordinates,
+      invalidCategories,
+      markersCreated: this.openMapMarkers.length,
+      markersDirectlyAddedToMap: added.direct,
+      markersAddedToCluster: added.clustered,
+      clusterAttachedToMap: this.markerCluster ? this.map.hasLayer(this.markerCluster) : false,
+      totalMarkersInCluster: this.markerCluster?.getLayers().length ?? 0,
+      zoom: this.map.getZoom(),
+      center: this.map.getCenter(),
+    };
+    const diagnosticsKey = JSON.stringify(diagnostics);
+    if (diagnosticsKey !== this.lastMarkerDiagnostics) {
+      console.info('[CareFinder map] OpenStreetMap marker batch rendered', diagnostics);
+      this.lastMarkerDiagnostics = diagnosticsKey;
+    }
   }
 }
 
@@ -1118,6 +1254,34 @@ function escapeHtml(value: string): string {
 
 function isFacilityCategory(category: unknown): category is FacilityCategory {
   return typeof category === 'string' && Object.prototype.hasOwnProperty.call(categoryMarkerColors, category);
+}
+
+function hasLikelyReversedCoordinates(facility: Facility): boolean {
+  const latitude = Number(facility.latitude);
+  const longitude = Number(facility.longitude);
+  return Number.isFinite(latitude) && Number.isFinite(longitude)
+    && Math.abs(latitude) > 90 && Math.abs(latitude) <= 180
+    && Math.abs(longitude) <= 90;
+}
+
+function createMobileFacilityMarker(
+  coordinates: L.LatLngExpression,
+  category: FacilityCategory,
+): L.CircleMarker {
+  return L.circleMarker(coordinates, {
+    radius: 23,
+    color: '#fff',
+    weight: 4,
+    opacity: 1,
+    fillColor: categoryMarkerColors[category],
+    fillOpacity: 1,
+    className: 'carefinder-mobile-facility-marker',
+  }).bindTooltip(categoryMarkerLabels[category], {
+    permanent: true,
+    direction: 'center',
+    className: 'facility-circle-label',
+    opacity: 1,
+  });
 }
 
 function categoryMarkerIcon(category: Facility['category']): L.DivIcon {

@@ -69,6 +69,19 @@
 .facility-marker-clinic { background: #258875; }
 .facility-marker-pharmacy { background: #8a67a8; }
 .facility-marker-health_center { background: #d18439; }
+.carefinder-mobile-facility-marker { filter: drop-shadow(0 1px 3px rgb(25 54 72 / 55%)); }
+.leaflet-tooltip.facility-circle-label {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: #fff;
+  background: transparent;
+  box-shadow: none;
+  font: 800 11px/1 Arial, sans-serif;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgb(20 40 55 / 65%);
+}
+.leaflet-tooltip.facility-circle-label::before { display: none; }
 .facility-cluster { border: 0; background: transparent; }
 .facility-cluster span {
   display: grid;
