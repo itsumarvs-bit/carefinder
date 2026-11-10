@@ -1,10 +1,13 @@
 <ion-content class="map-content">
   <main class="map-shell" [class.navigation-active]="navigationVisible">
-    <div class="map-heading"><div><p class="eyebrow">HEALTHCARE NEAR YOU</p><h1>Explore the map</h1></div><div class="top-actions"><ion-button class="emergency-button" color="danger" [disabled]="loadingLocation" (click)="findNearestHospital()"><ion-icon slot="start" name="medical-outline"></ion-icon>Find Nearest Hospital</ion-button><ion-button [disabled]="loadingLocation" (click)="useMyLocation()">@if (loadingLocation) {
+    <div class="map-heading"><div><p class="eyebrow">HEALTHCARE NEAR YOU</p><h1>Explore the map</h1></div><div class="top-actions"><ion-button [disabled]="loadingLocation" (click)="useMyLocation()">@if (loadingLocation) {
     <ion-spinner name="crescent"></ion-spinner>
     }@if (!loadingLocation) {
     <ion-icon slot="start" name="locate-outline"></ion-icon>Use my location
   }</ion-button></div></div>
+  <ion-button class="emergency-button" expand="block" color="danger" [disabled]="loadingLocation" (click)="findNearestHospital()">
+    <ion-icon slot="start" name="medical-outline"></ion-icon>Find Nearest Hospital
+  </ion-button>
   <p class="location-message"><ion-icon name="information-circle-outline"></ion-icon>{{ locationMessage }}</p>
   <div class="map-legend" aria-label="Facility category legend">
     @for (category of categoryOptions.slice(1); track category.id) {
@@ -18,6 +21,10 @@
       <ion-icon name="search-outline" aria-hidden="true"></ion-icon>
       <input type="search" [value]="searchText" (input)="setSearch($event)" placeholder="Search nearby care" aria-label="Search healthcare facilities">
     </label>
+    <button class="mobile-emergency-button" type="button" [disabled]="loadingLocation" (click)="findNearestHospital()">
+      <ion-icon name="medical-outline" aria-hidden="true"></ion-icon>
+      {{ loadingLocation ? 'Finding nearest hospital…' : 'Find Nearest Hospital' }}
+    </button>
     <div class="mobile-category-filters" aria-label="Filter by facility category">
       @for (category of categoryOptions; track category.id) {
         <button type="button" [class.active]="categoryFilter === category.id" [attr.aria-pressed]="categoryFilter === category.id" (click)="setCategoryFilter(category.id)">
@@ -28,6 +35,38 @@
         </button>
       }
     </div>
+    <details class="mobile-advanced-filters">
+      <summary>Detailed filters</summary>
+      <div class="filter-grid">
+        <label>Classification
+          <select [(ngModel)]="classificationFilter" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()">
+            <option value="all">Any classification</option><option value="public">Public</option><option value="private">Private</option>
+          </select>
+        </label>
+        <label>Minimum rating
+          <select [(ngModel)]="minimumRating" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()">
+            <option [ngValue]="0">Any rating</option><option [ngValue]="3">3+ stars</option><option [ngValue]="4">4+ stars</option><option [ngValue]="5">5 stars</option>
+          </select>
+        </label>
+        <label>Within distance
+          <select [(ngModel)]="withinDistanceKm" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()">
+            <option [ngValue]="0">Any distance</option><option [ngValue]="5">5 km</option><option [ngValue]="10">10 km</option><option [ngValue]="25">25 km</option><option [ngValue]="50">50 km</option>
+          </select>
+        </label>
+        <label>Medical service
+          <input [(ngModel)]="serviceFilter" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()" placeholder="e.g. consultation">
+        </label>
+        <label>Specialty
+          <input [(ngModel)]="specialtyFilter" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()" placeholder="e.g. pediatrics">
+        </label>
+        <label>Diagnostic service
+          <input [(ngModel)]="diagnosticsFilter" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()" placeholder="e.g. laboratory">
+        </label>
+      </div>
+      <label class="filter-check"><input type="checkbox" [(ngModel)]="verifiedOnly" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()">Verified facilities only</label>
+      <label class="filter-check"><input type="checkbox" [(ngModel)]="twentyFourHoursOnly" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()">Verified 24-hour schedules only</label>
+      <button type="button" class="clear-filters-button" (click)="clearAllFilters()">Clear all filters</button>
+    </details>
   </div>
   <div class="map-layout">
     <div #mapHost class="map-host" aria-label="Map showing healthcare facilities"></div>
@@ -71,6 +110,36 @@
           </button>
         }
       </div>
+      <details class="desktop-advanced-filters">
+        <summary>Detailed filters</summary>
+        <div class="filter-grid">
+          <label>Classification
+            <select [(ngModel)]="classificationFilter" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()">
+              <option value="all">Any classification</option><option value="public">Public</option><option value="private">Private</option>
+            </select>
+          </label>
+          <label>Minimum rating
+            <select [(ngModel)]="minimumRating" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()">
+              <option [ngValue]="0">Any rating</option><option [ngValue]="3">3+ stars</option><option [ngValue]="4">4+ stars</option><option [ngValue]="5">5 stars</option>
+            </select>
+          </label>
+          <label>Within distance
+            <select [(ngModel)]="withinDistanceKm" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()">
+              <option [ngValue]="0">Any distance</option><option [ngValue]="5">5 km</option><option [ngValue]="10">10 km</option><option [ngValue]="25">25 km</option><option [ngValue]="50">50 km</option>
+            </select>
+          </label>
+          <label>Medical service<input [(ngModel)]="serviceFilter" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()" placeholder="Search service"></label>
+          <label>Specialty<input [(ngModel)]="specialtyFilter" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()" placeholder="Search specialty"></label>
+          <label>Diagnostic service<input [(ngModel)]="diagnosticsFilter" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()" placeholder="Search diagnostics"></label>
+        </div>
+        <label class="filter-check"><input type="checkbox" [(ngModel)]="verifiedOnly" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()">Verified only</label>
+        <label class="filter-check"><input type="checkbox" [(ngModel)]="twentyFourHoursOnly" [ngModelOptions]="{standalone:true}" (ngModelChange)="onAdvancedFiltersChanged()">Verified 24-hour schedules only</label>
+        <button type="button" class="clear-filters-button" (click)="clearAllFilters()">Clear all filters</button>
+      </details>
+      @if (reviewSummaryError) {
+        <p class="list-empty" role="status">{{ reviewSummaryError }}</p>
+      }
+      <p class="map-hint">{{ filteredFacilities.length }} matching facilities</p>
       <p class="map-hint">{{ openMapMessage }}</p>
       @if (openMapError) {
         <ion-button size="small" fill="clear" (click)="retryOpenMapSearch()">Try again</ion-button>
@@ -82,7 +151,7 @@
           } @else {
             <span [class]="'pin category-' + facility.category"><ion-icon [name]="categoryIcon(facility.category)"></ion-icon></span>
           }
-          <span class="map-facility-copy"><strong>{{ facilityName(facility) }}</strong>@if (facilityAddress(facility); as address) {
+          <span class="map-facility-copy"><strong>{{ facilityName(facility) }}</strong><app-facility-rating [summary]="reviewSummaries.get(facility.id)"></app-facility-rating>@if (facilityAddress(facility); as address) {
             <small>{{ address }}</small>
           }@if (facilityDistanceLabel(facility); as distance) {
             <small class="facility-distance">Approx. {{ distance }} straight-line</small>

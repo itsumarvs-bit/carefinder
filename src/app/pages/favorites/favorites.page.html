@@ -8,7 +8,7 @@
             <article class="saved-card">
               <a class="saved-main" [routerLink]="['/facility', facility.id]">
                 <span class="facility-icon"><ion-icon name="medkit-outline"></ion-icon></span>
-                <span><strong>{{ facility.name || 'Name not provided' }}</strong><small>{{ facility.address || 'Address not provided' }}@if (facility.city) {
+                <span><strong>{{ facility.name || 'Name not provided' }}</strong><app-facility-rating [summary]="(reviewSummaries$ | async)?.get(facility.id)"></app-facility-rating><small>{{ facility.address || 'Address not provided' }}@if (facility.city) {
                 , {{ facility.city }}
               }</small></span>
             </a>

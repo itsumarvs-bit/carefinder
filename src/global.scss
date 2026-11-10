@@ -191,11 +191,14 @@ app-map .map-shell {
   app-map .map-shell .mobile-map-search ion-icon { flex: 0 0 auto; font-size: 19px; }
   app-map .map-shell .mobile-map-search input { width: 100%; min-width: 0; border: 0; outline: 0; color: #2e4657; background: transparent; font: inherit; font-size: 14px; }
   app-map .map-shell .mobile-map-search input::placeholder { color: #8998a1; }
+  app-map .map-shell .mobile-emergency-button { display: flex; width: 100%; min-height: 46px; align-items: center; justify-content: center; gap: 8px; margin-top: 8px; padding: 0 14px; border: 0; border-radius: 12px; color: #fff; background: #d93d33; box-shadow: 0 4px 12px rgb(146 40 34 / 22%); font: inherit; font-size: 13px; font-weight: 750; }
+  app-map .map-shell .mobile-emergency-button:disabled { opacity: .7; }
+  app-map .map-shell .mobile-emergency-button ion-icon { font-size: 18px; }
   app-map .map-shell .mobile-category-filters { display: flex; gap: 7px; overflow-x: auto; margin-top: 10px; padding: 2px 0 5px; scrollbar-width: none; }
   app-map .map-shell .mobile-category-filters::-webkit-scrollbar { display: none; }
   app-map .map-shell .mobile-category-filters button { display: inline-flex; min-height: 44px; flex: 0 0 auto; align-items: center; gap: 5px; padding: 0 12px; border: 1px solid #e3eaed; border-radius: 20px; color: #526977; background: #fff; box-shadow: 0 2px 8px rgb(28 58 76 / 9%); font: inherit; font-size: 11px; font-weight: 650; }
   app-map .map-shell .mobile-category-filters button.active { border-color: #1976d2; color: #fff; background: #1976d2; }
-  app-map .map-shell .mobile-map-tools { position: absolute; z-index: 450; top: 126px; right: 14px; display: flex; flex-direction: column; gap: 9px; }
+  app-map .map-shell .mobile-map-tools { position: absolute; z-index: 450; top: 184px; right: 14px; display: flex; flex-direction: column; gap: 9px; }
   app-map .map-shell .mobile-map-tools > button,
   app-map .map-shell .map-zoom-controls button { display: grid; width: 46px; height: 46px; place-items: center; border: 1px solid #e4eaee; border-radius: 14px; color: #276789; background: #fff; box-shadow: 0 3px 12px rgb(28 58 76 / 14%); font-size: 20px; }
   app-map .map-shell .mobile-map-tools > button ion-icon { font-size: 21px; }

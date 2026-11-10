@@ -28,6 +28,29 @@
           <span>{{ locating ? 'Locating' : 'Use my location' }}</span>
         </ion-button>
       </div>
+      <details class="home-advanced-filters">
+        <summary>Detailed filters</summary>
+        <div class="home-filter-grid">
+          <label>Classification
+            <select [(ngModel)]="classificationFilter" (ngModelChange)="resetVisibleItemCount()">
+              <option value="all">Any classification</option><option value="public">Public</option><option value="private">Private</option>
+            </select>
+          </label>
+          <label>Minimum rating
+            <select [(ngModel)]="minimumRating" (ngModelChange)="resetVisibleItemCount()">
+              <option [ngValue]="0">Any rating</option><option [ngValue]="3">3+ stars</option><option [ngValue]="4">4+ stars</option><option [ngValue]="5">5 stars</option>
+            </select>
+          </label>
+          <label>Within distance
+            <select [(ngModel)]="withinDistanceKm" (ngModelChange)="resetVisibleItemCount()">
+              <option [ngValue]="0">Any distance</option><option [ngValue]="5">5 km</option><option [ngValue]="10">10 km</option><option [ngValue]="25">25 km</option><option [ngValue]="50">50 km</option>
+            </select>
+          </label>
+        </div>
+        <label class="home-filter-check"><input type="checkbox" [(ngModel)]="verifiedOnly" (ngModelChange)="resetVisibleItemCount()">Verified facilities only</label>
+        <label class="home-filter-check"><input type="checkbox" [(ngModel)]="twentyFourHoursOnly" (ngModelChange)="resetVisibleItemCount()">Verified 24-hour schedules only</label>
+        <button type="button" class="home-clear-filters" (click)="clearFilters()">Clear all filters</button>
+      </details>
       @if (locationMessage) {
         <p class="location-note"><ion-icon name="information-circle-outline"></ion-icon>{{ locationMessage }}</p>
       }
@@ -70,6 +93,9 @@
       </div>
 
       @if (facilities$ | async; as facilities) {
+        @if (reviewSummaryError) {
+          <p class="error-note" role="status">{{ reviewSummaryError }}</p>
+        }
         @if (loadError) {
           <p class="error-note"><ion-icon name="warning-outline"></ion-icon>{{ loadError }}</p>
         }
@@ -84,6 +110,7 @@
           </div>
         }
         @if (getVisibleFacilities(facilities); as visible) {
+          <p class="facility-result-count">{{ filteredFacilityCount(facilities) }} matching facilities</p>
           <div class="facility-grid">
             @for (facility of visible; track facility.id) {
               <article class="facility-card" [routerLink]="['/facility', facility.id]">
@@ -116,6 +143,7 @@
                     }
                   </div>
                   <h3>{{ facility.name || 'Name not provided' }}</h3>
+                  <app-facility-rating [summary]="reviewSummaries.get(facility.id)"></app-facility-rating>
                   <p class="address"><ion-icon name="location-outline"></ion-icon><span>{{ facility.address }}@if (facility.city) {
                   , {{ facility.city }}
                 }</span></p>

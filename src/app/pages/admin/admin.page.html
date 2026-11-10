@@ -166,6 +166,11 @@
             <summary><span class="section-number">D</span><span><strong>Services and operating hours</strong><small>Services, amenities, and weekly schedule</small></span><ion-icon name="chevron-down-outline"></ion-icon></summary>
             <div class="form-grid">
               <ion-item class="field span-two"><ion-input name="services" label="Services (comma separated)" labelPlacement="stacked" [(ngModel)]="form.services"></ion-input></ion-item>
+              <ion-item class="field"><ion-select name="classification" label="Public or private" labelPlacement="stacked" [(ngModel)]="form.classification" interface="popover"><ion-select-option value="">Not provided</ion-select-option><ion-select-option value="public">Public</ion-select-option><ion-select-option value="private">Private</ion-select-option></ion-select></ion-item>
+              <ion-item class="field"><ion-input name="specialties" label="Specialties (comma separated)" labelPlacement="stacked" [(ngModel)]="form.specialties"></ion-input></ion-item>
+              <ion-item class="field span-two"><ion-input name="departments" label="Departments (comma separated)" labelPlacement="stacked" [(ngModel)]="form.departments"></ion-input></ion-item>
+              <ion-item class="field span-two"><ion-input name="diagnosticServices" label="Diagnostic and laboratory services (comma separated)" labelPlacement="stacked" [(ngModel)]="form.diagnosticServices"></ion-input></ion-item>
+              <ion-item class="field span-two"><ion-input name="emergencyServices" label="Verified emergency services (comma separated)" labelPlacement="stacked" [(ngModel)]="form.emergencyServices"></ion-input></ion-item>
               <ion-item class="field span-two"><ion-input name="amenities" label="Amenities (comma separated)" labelPlacement="stacked" [(ngModel)]="form.amenities"></ion-input></ion-item>
               <div class="schedule-editor span-two">
                 <div class="schedule-heading"><div><strong>Weekly hours</strong><p>Enable only the days with confirmed hours. Disable a day to omit it.</p></div></div>

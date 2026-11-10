@@ -1,4 +1,7 @@
+import type { Timestamp } from 'firebase/firestore';
+
 export type FacilityCategory = 'hospital' | 'clinic' | 'pharmacy' | 'health_center';
+export type FacilityClassification = 'public' | 'private';
 export type OsmElementType = 'node' | 'way' | 'relation';
 export type GeographicReview = 'unreviewed' | 'confirmed' | 'uncertain' | 'outside';
 
@@ -53,6 +56,7 @@ export interface Facility {
   name: string;
   slug?: string;
   category: FacilityCategory;
+  classification?: FacilityClassification;
   description?: string;
   address: string;
   barangay?: string;
@@ -69,10 +73,17 @@ export interface Facility {
   imageUrls?: string[];
   photos?: FacilityPhoto[];
   services?: string[];
+  specialties?: string[];
+  departments?: string[];
+  diagnosticServices?: string[];
+  emergencyServices?: string[];
   amenities?: string[];
   operatingHours?: OperatingHours;
   timeZone?: string;
   isVerified: boolean;
+  verifiedAt?: Timestamp;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
   isActive: boolean;
   isSample?: boolean;
   source?: 'openstreetmap';

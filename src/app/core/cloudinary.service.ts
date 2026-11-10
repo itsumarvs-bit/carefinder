@@ -60,7 +60,10 @@ export class CloudinaryService {
         }
 
         if (request.status < 200 || request.status >= 300) {
-          reject(new Error(response.error?.message || `Photo upload failed (${request.status}). Please retry.`));
+          reject(new Error(cloudinaryUploadErrorMessage(
+            response.error?.message,
+            request.status,
+          )));
           return;
         }
         if (!response.secure_url || !response.public_id) {
@@ -78,6 +81,17 @@ interface CloudinaryResponse {
   secure_url?: string;
   public_id?: string;
   error?: { message?: string };
+}
+
+export function cloudinaryUploadErrorMessage(message?: string, status?: number): string {
+  const cloudinaryMessage = message?.trim();
+  if (/unknown api key/i.test(cloudinaryMessage ?? '')) {
+    return 'Cloudinary rejected the upload configuration (Unknown API key). This app uses unsigned uploads and does not send an API key. Verify the cloud name belongs to the intended Cloudinary account and that the carefinder_facility_photos preset is configured as Unsigned.';
+  }
+  if (/unsigned|upload preset/i.test(cloudinaryMessage ?? '')) {
+    return `Cloudinary rejected the upload preset: ${cloudinaryMessage} Verify that carefinder_facility_photos is configured as an Unsigned upload preset.`;
+  }
+  return cloudinaryMessage || `Photo upload failed${status ? ` (${status})` : ''}. Check the Cloudinary upload preset and try again.`;
 }
 
 export function cloudinaryImageUrl(url: string | undefined, width: number): string | undefined {

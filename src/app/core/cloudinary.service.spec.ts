@@ -2,7 +2,7 @@ import { Injector, runInInjectionContext } from '@angular/core';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from './auth.service';
 import {
-  CloudinaryService, cloudinaryImageUrl, facilityPhotoValidationError,
+  CloudinaryService, cloudinaryImageUrl, cloudinaryUploadErrorMessage, facilityPhotoValidationError,
 } from './cloudinary.service';
 import { environment } from '../../environments/environment';
 
@@ -36,6 +36,8 @@ describe('CloudinaryService', () => {
       send(body: FormData): void {
         expect(body.get('upload_preset')).toBe(environment.cloudinary.uploadPreset);
         expect(body.get('folder')).toBe(environment.cloudinary.folder);
+        expect(body.has('api_key')).toBe(false);
+        expect(body.has('api_secret')).toBe(false);
         this.upload.onprogress?.({ lengthComputable: true, loaded: 1, total: 2 } as ProgressEvent);
         this.onload?.();
       }
@@ -84,6 +86,25 @@ describe('CloudinaryService', () => {
     } finally {
       injector.destroy();
     }
+  });
+});
+
+describe('cloudinaryUploadErrorMessage', () => {
+  it('explains how to resolve an unknown API key for unsigned uploads', () => {
+    expect(cloudinaryUploadErrorMessage('Unknown API key', 401))
+      .toContain('does not send an API key');
+    expect(cloudinaryUploadErrorMessage('Unknown API key', 401))
+      .toContain('configured as Unsigned');
+  });
+
+  it('points to the unsigned preset setting when Cloudinary rejects the preset', () => {
+    expect(cloudinaryUploadErrorMessage('Upload preset must be whitelisted for unsigned uploads', 400))
+      .toContain('Verify that carefinder_facility_photos is configured as an Unsigned upload preset');
+  });
+
+  it('preserves useful Cloudinary messages and supplies a fallback', () => {
+    expect(cloudinaryUploadErrorMessage('Unsupported image format', 400)).toBe('Unsupported image format');
+    expect(cloudinaryUploadErrorMessage(undefined, 503)).toBe('Photo upload failed (503). Check the Cloudinary upload preset and try again.');
   });
 });
 

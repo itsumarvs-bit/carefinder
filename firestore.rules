@@ -26,6 +26,37 @@ service cloud.firestore {
         );
     }
 
+    function validStringList(values) {
+      return values is list && values.size() <= 50;
+    }
+
+    function activeFacility(facilityId) {
+      return exists(/databases/$(database)/documents/facilities/$(facilityId))
+        && get(/databases/$(database)/documents/facilities/$(facilityId)).data.isActive == true;
+    }
+
+    function validReview(data, reviewerId) {
+      return data.keys().hasAll([
+          'reviewerId', 'reviewerName', 'rating', 'comment', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'reviewerId', 'reviewerName', 'rating', 'comment', 'createdAt', 'updatedAt'
+        ])
+        && data.reviewerId == reviewerId
+        && data.reviewerName is string
+        && data.reviewerName.size() > 0
+        && data.reviewerName.size() <= 100
+        && exists(/databases/$(database)/documents/users/$(reviewerId))
+        && data.reviewerName == get(/databases/$(database)/documents/users/$(reviewerId)).data.displayName
+        && data.rating is int
+        && data.rating >= 1 && data.rating <= 5
+        && data.comment is string
+        && data.comment.size() > 0 && data.comment.size() <= 1000
+        && data.comment.matches('.*\\S.*')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     function validImageUrl(url) {
         return url is string && url.size() <= 2048;
     }
@@ -108,6 +139,7 @@ service cloud.firestore {
         && data.keys().hasOnly([
           'name', 'slug', 'category', 'description', 'address', 'barangay', 'city', 'province', 'region',
           'contactNumber', 'email', 'website', 'latitude', 'longitude', 'imageUrl', 'imageUrls', 'photos', 'services', 'amenities',
+          'classification', 'specialties', 'departments', 'diagnosticServices', 'emergencyServices', 'verifiedAt',
           'operatingHours', 'timeZone', 'isVerified', 'isActive', 'createdAt', 'updatedAt',
           'source', 'osmType', 'osmId', 'sourceData', 'geographicReview'
         ])
@@ -118,6 +150,12 @@ service cloud.firestore {
           || ('source' in data && validOsmFacility(data, facilityId)))
         && data.isVerified is bool && data.isActive is bool
         && data.createdAt is timestamp && data.updatedAt is timestamp
+        && (!('classification' in data) || data.classification in ['public', 'private'])
+        && (!('specialties' in data) || validStringList(data.specialties))
+        && (!('departments' in data) || validStringList(data.departments))
+        && (!('diagnosticServices' in data) || validStringList(data.diagnosticServices))
+        && (!('emergencyServices' in data) || validStringList(data.emergencyServices))
+        && (!('verifiedAt' in data) || data.verifiedAt is timestamp)
         && (!('imageUrl' in data) || validImageUrl(data.imageUrl))
         && (!('imageUrls' in data) || validImageUrls(data.imageUrls))
         && (!('photos' in data) || validFacilityPhotos(data.photos))
@@ -141,6 +179,24 @@ service cloud.firestore {
             'source', 'osmType', 'osmId', 'sourceData', 'geographicReview'
           ]));
       allow delete: if isAdmin();
+
+      match /reviews/{reviewerId} {
+        allow read: if isAdmin() || activeFacility(facilityId);
+        allow create: if isOwner(reviewerId)
+          && activeFacility(facilityId)
+          && validReview(request.resource.data, reviewerId)
+          && request.resource.data.createdAt == request.time
+          && request.resource.data.updatedAt == request.time;
+        allow update: if isOwner(reviewerId)
+          && activeFacility(facilityId)
+          && resource.data.reviewerId == reviewerId
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['reviewerName', 'rating', 'comment', 'updatedAt'])
+          && validReview(request.resource.data, reviewerId)
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.updatedAt == request.time;
+        allow delete: if isOwner(reviewerId) && resource.data.reviewerId == reviewerId;
+      }
     }
 
     match /users/{uid} {

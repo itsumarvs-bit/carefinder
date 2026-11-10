@@ -18,7 +18,7 @@ export const environment = {
     measurementId: 'G-CPWD4Q4CLQ',
   },
   cloudinary: {
-    cloudName: 'dmj90as7x',
+    cloudName: 'dmj9oas7x',
     uploadPreset: 'carefinder_facility_photos',
     folder: 'carefinder/facilities',
   },

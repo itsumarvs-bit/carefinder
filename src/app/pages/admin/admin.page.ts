@@ -237,6 +237,11 @@ export class AdminPage implements OnDestroy {
       longitude: record.longitude,
       services: (record.services ?? []).join(', '),
       amenities: (record.amenities ?? []).join(', '),
+      classification: record.classification ?? '',
+      specialties: (record.specialties ?? []).join(', '),
+      departments: (record.departments ?? []).join(', '),
+      diagnosticServices: (record.diagnosticServices ?? []).join(', '),
+      emergencyServices: (record.emergencyServices ?? []).join(', '),
       isVerified: record.isVerified,
       isActive: record.isActive,
       timeZone: record.timeZone ?? '',
@@ -364,7 +369,8 @@ export class AdminPage implements OnDestroy {
   }
 
   async retryPhoto(photo: FacilityPhoto): Promise<void> {
-    if (photo.file) await this.uploadPhoto(photo);
+    if (this.saving || !photo.file || photo.uploading) return;
+    await this.uploadPhoto(photo);
   }
 
   async submit(): Promise<void> {
@@ -440,6 +446,11 @@ export class AdminPage implements OnDestroy {
         })),
         services: splitList(this.form.services),
         amenities: splitList(this.form.amenities),
+        classification: this.form.classification || undefined,
+        specialties: splitList(this.form.specialties),
+        departments: splitList(this.form.departments),
+        diagnosticServices: splitList(this.form.diagnosticServices),
+        emergencyServices: splitList(this.form.emergencyServices),
         timeZone: this.form.timeZone.trim() || undefined,
         operatingHours,
         isSample: false,
@@ -502,6 +513,8 @@ export class AdminPage implements OnDestroy {
       name: '', category: 'clinic' as FacilityCategory, description: '', address: '', barangay: '',
       city: '', province: '', region: '', contactNumber: '', email: '', website: '', latitude: undefined as number | undefined,
       longitude: undefined as number | undefined, services: '', amenities: '',
+      classification: '' as Facility['classification'] | '',
+      specialties: '', departments: '', diagnosticServices: '', emergencyServices: '',
       isVerified: false, isActive: true, timeZone: '',
     };
   }

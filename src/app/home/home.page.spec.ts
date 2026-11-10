@@ -59,6 +59,53 @@ describe('HomePage', () => {
     expect(component.visibleItemCount).toBe(10);
     expect(component.getVisibleFacilities(facilities)).toHaveLength(10);
   });
+
+  it('combines classification, rating, verification, distance, and service search filters', () => {
+    const facilities: Facility[] = [
+      {
+        id: 'matching', name: 'Cedar Care', category: 'clinic', address: '1 Main St',
+        classification: 'public', specialties: ['Pediatrics'], latitude: 14.001, longitude: 121,
+        isVerified: true, isActive: true,
+      },
+      {
+        id: 'private', name: 'Private Pediatrics', category: 'clinic', address: '2 Main St',
+        classification: 'private', specialties: ['Pediatrics'], latitude: 14.001, longitude: 121,
+        isVerified: true, isActive: true,
+      },
+      {
+        id: 'low-rated', name: 'Low Rated Pediatrics', category: 'clinic', address: '3 Main St',
+        classification: 'public', specialties: ['Pediatrics'], latitude: 14.001, longitude: 121,
+        isVerified: true, isActive: true,
+      },
+      {
+        id: 'too-far', name: 'Distant Pediatrics', category: 'clinic', address: '4 Main St',
+        classification: 'public', specialties: ['Pediatrics'], latitude: 14.1, longitude: 121,
+        isVerified: true, isActive: true,
+      },
+      {
+        id: 'unverified', name: 'Unverified Pediatrics', category: 'clinic', address: '5 Main St',
+        classification: 'public', specialties: ['Pediatrics'], latitude: 14.001, longitude: 121,
+        isVerified: false, isActive: true,
+      },
+    ];
+    component.classificationFilter = 'public';
+    component.minimumRating = 4;
+    component.verifiedOnly = true;
+    component.withinDistanceKm = 5;
+    component.searchText = 'pediatrics';
+    component.location = {
+      latitude: 14, longitude: 121, accuracy: 10, altitude: null, altitudeAccuracy: null, heading: null, speed: null,
+    };
+    component.reviewSummaries = new Map([
+      ['matching', { averageRating: 4.5, reviewCount: 2 }],
+      ['private', { averageRating: 5, reviewCount: 1 }],
+      ['low-rated', { averageRating: 3, reviewCount: 1 }],
+      ['too-far', { averageRating: 5, reviewCount: 1 }],
+      ['unverified', { averageRating: 5, reviewCount: 1 }],
+    ]);
+
+    expect(component.getVisibleFacilities(facilities).map((facility) => facility.id)).toEqual(['matching']);
+  });
 });
 
 function makeFacilities(count: number): Facility[] {

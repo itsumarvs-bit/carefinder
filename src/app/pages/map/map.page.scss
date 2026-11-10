@@ -5,7 +5,7 @@
 .eyebrow { margin: 0 0 6px; color: #2c9481; font-size: 10px; font-weight: 800; letter-spacing: 1.3px; }
 h1 { margin: 0; color: #20394d; font-size: 27px; letter-spacing: -.6px; }
 .map-heading ion-button { --border-radius: 9px; font-size: 12px; }
-.emergency-button { --background: #d93d33; --background-activated: #ba2a22; --color: #fff; }
+.emergency-button { display: block; width: 100%; min-height: 48px; margin: 12px 0; --background: #d93d33; --background-activated: #ba2a22; --border-radius: 10px; --color: #fff; font-size: 14px; font-weight: 750; }
 .location-message { display: flex; gap: 6px; align-items: center; margin: 13px 0; color: #758894; font-size: 12px; }
 .location-message ion-icon { color: #3286b7; }
 .map-legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
@@ -33,6 +33,14 @@ h1 { margin: 0; color: #20394d; font-size: 27px; letter-spacing: -.6px; }
 .category-filters button { display: inline-flex; align-items: center; gap: 3px; padding: 5px 7px; border: 1px solid #e4ebee; border-radius: 7px; color: #617985; background: #fff; font-size: 9px; cursor: pointer; }
 .category-filters button.active { border-color: #bedcd9; color: #176f67; background: #ecf7f4; }
 .category-filters ion-icon { font-size: 12px; }
+.desktop-advanced-filters, .mobile-advanced-filters { margin: 10px 0; border: 1px solid #e6edf0; border-radius: 9px; background: #fbfcfd; }
+.desktop-advanced-filters > summary, .mobile-advanced-filters > summary { padding: 9px 10px; color: #426170; font-size: 11px; font-weight: 700; cursor: pointer; }
+.filter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 8px; }
+.filter-grid label { display: grid; min-width: 0; gap: 4px; color: #70838e; font-size: 9px; }
+.filter-grid input, .filter-grid select { width: 100%; min-width: 0; height: 34px; padding: 0 7px; border: 1px solid #e0e8ec; border-radius: 7px; color: #415b6b; background: white; font: inherit; font-size: 10px; }
+.filter-check { display: flex; align-items: center; gap: 6px; padding: 6px 9px; color: #5d7380; font-size: 10px; }
+.clear-filters-button { margin: 4px 8px 8px; padding: 6px 9px; border: 1px solid #dfe8ec; border-radius: 7px; color: #276f8e; background: white; font: inherit; font-size: 10px; cursor: pointer; }
+.mobile-advanced-filters { display: none; }
 .map-hint { margin: 7px 0 11px; color: #8a979f; font-size: 10px; line-height: 1.45; }
 .map-facility { display: flex; width: 100%; align-items: flex-start; gap: 9px; padding: 11px 7px; border: 0; border-top: 1px solid #eff2f4; background: transparent; text-align: left; cursor: pointer; }
 .map-facility.selected { border-radius: 9px; background: #eef7fb; }
@@ -85,4 +93,4 @@ h1 { margin: 0; color: #20394d; font-size: 27px; letter-spacing: -.6px; }
 .start-navigation-button::part(native) { gap: 8px; color: #fff; }
 .start-navigation-button ion-icon { flex: 0 0 auto; color: #fff; font-size: 20px; opacity: 1; }
 .navigation-button-label { display: inline-block; color: #fff; line-height: 1.2; opacity: 1; visibility: visible; white-space: nowrap; }
-@media(max-width: 760px), (max-height: 500px) and (orientation: landscape) { .map-shell { width: calc(100% - 26px); margin-top: 16px; } .map-layout { height: auto; min-height: 0; grid-template-columns: 1fr; } .map-host { height: 48vh; min-height: 320px; } .facility-list { max-height: 350px; border-top: 1px solid #e8edf1; border-left: 0; } .selected-card { flex-wrap: wrap; gap: 10px; } .selected-card > div { flex: 1 1 calc(100% - 70px); } .navigation-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media(max-width: 760px), (max-height: 500px) and (orientation: landscape) { .map-shell { width: calc(100% - 26px); margin-top: 16px; } .map-layout { height: auto; min-height: 0; grid-template-columns: 1fr; } .map-host { height: 48vh; min-height: 320px; } .facility-list { max-height: 350px; border-top: 1px solid #e8edf1; border-left: 0; } .selected-card { flex-wrap: wrap; gap: 10px; } .selected-card > div { flex: 1 1 calc(100% - 70px); } .navigation-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } .desktop-advanced-filters { display: none; } .mobile-advanced-filters { display: block; } }

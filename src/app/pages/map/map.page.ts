@@ -1,5 +1,6 @@
 
 import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, HostListener, NgZone, OnDestroy, OnInit, ViewChild, inject, isDevMode } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { RouterLink } from '@angular/router';
 import {
@@ -12,6 +13,7 @@ import 'leaflet.markercluster';
 import { Subscription } from 'rxjs';
 import { cloudinaryImageUrl } from '../../core/cloudinary.service';
 import { FacilityService } from '../../core/facility.service';
+import { FacilityReviewService } from '../../core/facility-review.service';
 import { LocationService } from '../../core/location.service';
 import { selectNearestHospital } from '../../core/nearest-hospital';
 import type { HospitalRouteDistance } from '../../core/nearest-hospital';
@@ -23,6 +25,8 @@ import { drivingMatrixDestinationBatchSize, NavigationRoute, RoutingService } fr
 import { VoiceNavigationService } from '../../core/voice-navigation.service';
 import { directionsUrl, facilityCoordinates, normalizeFacilityCoordinates } from '../../core/facility-utils';
 import { Facility, FacilityCategory, categoryLabels } from '../../models/facility.model';
+import { FacilityReviewSummary } from '../../models/facility-review.model';
+import { FacilityRatingComponent } from '../../shared/facility-rating/facility-rating.component';
 
 const L: typeof Leaflet = (globalThis as typeof globalThis & { L?: typeof Leaflet }).L ?? Leaflet;
 
@@ -54,7 +58,9 @@ type NavigationStatus = 'idle' | 'loading' | 'navigating' | 'paused' | 'arrived'
   templateUrl: './map.page.html',
   styleUrls: ['./map.page.scss'],
   imports: [
+    FormsModule,
     RouterLink,
+    FacilityRatingComponent,
     IonButton,
     IonContent,
     IonIcon,
@@ -65,6 +71,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapHost') private mapHost?: ElementRef<HTMLDivElement>;
   private readonly route = inject(ActivatedRoute);
   private readonly facilitiesService = inject(FacilityService);
+  private readonly facilityReviewService = inject(FacilityReviewService);
   private readonly locationService = inject(LocationService);
   private readonly routingService = inject(RoutingService);
   private readonly voiceService = inject(VoiceNavigationService);
@@ -84,6 +91,8 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   private readonly openMapMarkerById = new Map<string, LeafletTypes.Marker>();
   private readonly openMapMarkerSignatures = new Map<string, string>();
   private facilitiesSubscription?: Subscription;
+  private reviewSummarySubscription?: Subscription;
+  private reviewSummaryFacilityIds = '';
   private openMapRequest?: AbortController;
   private openMapRefreshTimer?: ReturnType<typeof setTimeout>;
   private lastOpenMapQuery = '';
@@ -112,6 +121,8 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   nearestHospitalRouteIncomplete = false;
   nearestHospitalMessage = 'Find the nearest hospital from your current location.';
   private nearestHospitalMarker?: LeafletTypes.Marker;
+  reviewSummaries = new Map<string, FacilityReviewSummary>();
+  reviewSummaryError = '';
 
   readonly categoryLabels = categoryLabels;
   readonly categoryOptions: Array<{ id: FacilityCategory | 'all'; label: string }> = [
@@ -137,6 +148,14 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   rerouteLoading = false;
   searchText = '';
   categoryFilter: FacilityCategory | 'all' = 'all';
+  classificationFilter: 'all' | 'public' | 'private' = 'all';
+  serviceFilter = '';
+  specialtyFilter = '';
+  diagnosticsFilter = '';
+  minimumRating = 0;
+  verifiedOnly = false;
+  withinDistanceKm = 0;
+  twentyFourHoursOnly = false;
   readonly maxListItems = 100;
   private locationMarker?: LeafletTypes.CircleMarker;
 
@@ -174,6 +193,36 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     }, coordinates));
   }
 
+  onAdvancedFiltersChanged(): void {
+    if (this.selectedFacility && !this.matchesFacility(this.selectedFacility)) this.selectedFacility = null;
+    this.renderFacilityMarkers();
+    this.renderOpenMapMarkers();
+    this.changeDetector.markForCheck();
+  }
+
+  clearAllFilters(): void {
+    this.searchText = '';
+    this.categoryFilter = 'all';
+    this.classificationFilter = 'all';
+    this.serviceFilter = '';
+    this.specialtyFilter = '';
+    this.diagnosticsFilter = '';
+    this.minimumRating = 0;
+    this.verifiedOnly = false;
+    this.withinDistanceKm = 0;
+    this.twentyFourHoursOnly = false;
+    this.onAdvancedFiltersChanged();
+  }
+
+  facilityIsTwentyFourHours(facility: Facility): boolean {
+    if (!facility.isVerified) return false;
+    const weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
+    return weekdays.every((day) => {
+      const hours = facility.operatingHours?.[day];
+      return hours?.closed === false && hours.open === '00:00' && hours.close === '23:59';
+    });
+  }
+
   ngOnInit(): void {
     this.route.queryParamMap.subscribe((params) => {
       const destinationId = params.get('destination');
@@ -185,6 +234,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.facilitiesSubscription = this.facilitiesService.watchActiveFacilities().subscribe({
       next: (facilities) => {
         this.facilities = facilities.map(normalizeFacilityCoordinates);
+        this.watchFacilityReviewSummaries();
         const activeFacilities = this.facilities.filter((facility) => facility.isActive);
         const markerCandidates = activeFacilities.filter((facility) => !facility.isSample);
         const validCoordinateCount = markerCandidates.filter((facility) => facilityCoordinates(facility) !== null).length;
@@ -225,6 +275,30 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       error: (error: unknown) => {
         console.error('Map facility data could not be loaded.', error);
         this.locationMessage = 'Facility data could not be loaded. Use the directory to search by name or address.';
+        this.changeDetector.markForCheck();
+      },
+    });
+  }
+
+  private watchFacilityReviewSummaries(): void {
+    const facilityIds = this.facilities
+      .filter((facility) => facility.isActive && !facility.isSample)
+      .map((facility) => facility.id)
+      .sort();
+    const key = facilityIds.join('\u0000');
+    if (key === this.reviewSummaryFacilityIds) return;
+    this.reviewSummaryFacilityIds = key;
+    this.reviewSummarySubscription?.unsubscribe();
+    this.reviewSummarySubscription = this.facilityReviewService.watchSummaries(facilityIds).subscribe({
+      next: (summaries) => {
+        this.reviewSummaries = summaries;
+        this.renderFacilityMarkers();
+        this.renderOpenMapMarkers();
+        this.changeDetector.markForCheck();
+      },
+      error: (error: unknown) => {
+        console.error('Facility rating summaries could not be displayed.', error);
+        this.reviewSummaryError = 'Facility ratings could not be loaded.';
         this.changeDetector.markForCheck();
       },
     });
@@ -378,6 +452,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.navigationStatus = 'idle';
     this.navigationFacility = undefined;
     this.facilitiesSubscription?.unsubscribe();
+    this.reviewSummarySubscription?.unsubscribe();
     if (this.openMapRefreshTimer) clearTimeout(this.openMapRefreshTimer);
     if (this.invalidateTimer) clearTimeout(this.invalidateTimer);
     this.resizeObserver?.disconnect();
@@ -730,17 +805,18 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
 
   async endNavigation(): Promise<void> {
     this.voiceService.stop();
+    let cleanupError = '';
     try {
       await this.locationService.stopWatchingNavigationPosition();
     } catch (error) {
-      this.navigationError = error instanceof Error ? error.message : 'GPS tracking could not be stopped.';
+      cleanupError = error instanceof Error ? error.message : 'GPS tracking could not be stopped.';
     }
     this.navigationStatus = 'idle';
     this.navigationRoute = undefined;
     this.routeCumulativeDistances = [];
     this.navigationFacility = undefined;
     this.navigationPosition = undefined;
-    this.navigationError = '';
+    this.navigationError = cleanupError;
     this.announcedThresholds.clear();
     this.removeNavigationOverlays();
     this.changeDetector.markForCheck();
@@ -1040,16 +1116,12 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
 
   setSearch(event: Event): void {
     this.searchText = (event.target as HTMLInputElement).value;
-    if (this.selectedFacility && !this.matchesFacility(this.selectedFacility)) this.selectedFacility = null;
-    this.renderFacilityMarkers();
-    this.renderOpenMapMarkers();
+    this.onAdvancedFiltersChanged();
   }
 
   setCategoryFilter(value: FacilityCategory | 'all'): void {
     this.categoryFilter = value;
-    if (this.selectedFacility && !this.matchesFacility(this.selectedFacility)) this.selectedFacility = null;
-    this.renderFacilityMarkers();
-    this.renderOpenMapMarkers();
+    this.onAdvancedFiltersChanged();
   }
 
   retryOpenMapSearch(): void {
@@ -1189,8 +1261,38 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
 
   private matchesFacility(facility: Facility, query = this.searchText.trim().toLocaleLowerCase()): boolean {
     if (this.categoryFilter !== 'all' && facility.category !== this.categoryFilter) return false;
+    if (this.classificationFilter !== 'all' && facility.classification !== this.classificationFilter) return false;
+    if (this.verifiedOnly && !facility.isVerified) return false;
+    if (this.minimumRating > 0
+      && (this.reviewSummaries.get(facility.id)?.averageRating ?? 0) < this.minimumRating) return false;
+    if (this.serviceFilter.trim() && !facility.services?.some((service) =>
+      service.toLocaleLowerCase().includes(this.serviceFilter.trim().toLocaleLowerCase()))) return false;
+    if (this.specialtyFilter.trim() && !facility.specialties?.some((specialty) =>
+      specialty.toLocaleLowerCase().includes(this.specialtyFilter.trim().toLocaleLowerCase()))) return false;
+    if (this.diagnosticsFilter.trim() && !facility.diagnosticServices?.some((service) =>
+      service.toLocaleLowerCase().includes(this.diagnosticsFilter.trim().toLocaleLowerCase()))) return false;
+    if (this.withinDistanceKm > 0) {
+      if (!this.userPosition) return false;
+      const coordinates = facilityCoordinates(facility);
+      if (!coordinates || distanceBetween({
+        latitude: this.userPosition.coords.latitude,
+        longitude: this.userPosition.coords.longitude,
+      }, coordinates) > this.withinDistanceKm * 1000) return false;
+    }
+    if (this.twentyFourHoursOnly && !this.facilityIsTwentyFourHours(facility)) return false;
     if (!query) return true;
-    return `${this.facilityName(facility)} ${this.facilityAddress(facility)}`.toLocaleLowerCase().includes(query);
+    const searchable = [
+      this.facilityName(facility),
+      this.facilityAddress(facility),
+      facility.category.replace('_', ' '),
+      facility.classification,
+      ...(facility.services ?? []),
+      ...(facility.specialties ?? []),
+      ...(facility.departments ?? []),
+      ...(facility.diagnosticServices ?? []),
+      ...(facility.emergencyServices ?? []),
+    ].filter(Boolean).join(' ').toLocaleLowerCase();
+    return searchable.includes(query);
   }
 
   private facilityPhotos(facility: Facility): string[] {
