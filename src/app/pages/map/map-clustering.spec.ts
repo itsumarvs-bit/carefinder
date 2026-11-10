@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import * as L from 'leaflet';
+import * as Leaflet from 'leaflet';
+import type * as LeafletTypes from 'leaflet';
 import 'leaflet.markercluster';
 
+const L: typeof Leaflet = (globalThis as typeof globalThis & { L?: typeof Leaflet }).L ?? Leaflet;
+
 describe('facility marker clustering', () => {
-  let map: L.Map | undefined;
+  let map: LeafletTypes.Map | undefined;
 
   afterEach(() => {
     map?.remove();
@@ -12,6 +15,8 @@ describe('facility marker clustering', () => {
   });
 
   it('groups nearby markers at low zoom and exposes child counts', () => {
+    expect(typeof L.markerClusterGroup).toBe('function');
+
     const host = document.createElement('div');
     Object.defineProperties(host, {
       clientWidth: { configurable: true, value: 800 },
@@ -39,7 +44,7 @@ describe('facility marker clustering', () => {
     const parent = cluster.getVisibleParent(markers[0]!);
     expect(parent).not.toBe(markers[0]);
     expect(parent).toBeInstanceOf(L.MarkerCluster);
-    expect((parent as L.MarkerCluster).getChildCount()).toBe(2);
+    expect((parent as LeafletTypes.MarkerCluster).getChildCount()).toBe(2);
 
     map.setZoom(19);
     expect(cluster.getVisibleParent(markers[0]!)).toBe(markers[0]);
@@ -47,6 +52,6 @@ describe('facility marker clustering', () => {
     map.setZoom(5);
     const reclusteredParent = cluster.getVisibleParent(markers[0]!);
     expect(reclusteredParent).toBeInstanceOf(L.MarkerCluster);
-    expect((reclusteredParent as L.MarkerCluster).getChildCount()).toBe(2);
+    expect((reclusteredParent as LeafletTypes.MarkerCluster).getChildCount()).toBe(2);
   });
 });

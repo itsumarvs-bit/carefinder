@@ -6,7 +6,8 @@ import {
   IonButton, IonContent, IonIcon, IonSpinner,
 } from '@ionic/angular';
 import type { Position } from '@capacitor/geolocation';
-import * as L from 'leaflet';
+import * as Leaflet from 'leaflet';
+import type * as LeafletTypes from 'leaflet';
 import 'leaflet.markercluster';
 import { Subscription } from 'rxjs';
 import { cloudinaryImageUrl } from '../../core/cloudinary.service';
@@ -20,6 +21,8 @@ import { NavigationRoute, RoutingService } from '../../core/routing.service';
 import { VoiceNavigationService } from '../../core/voice-navigation.service';
 import { directionsUrl, facilityCoordinates, normalizeFacilityCoordinates } from '../../core/facility-utils';
 import { Facility, FacilityCategory, categoryLabels } from '../../models/facility.model';
+
+const L: typeof Leaflet = (globalThis as typeof globalThis & { L?: typeof Leaflet }).L ?? Leaflet;
 
 const categoryNames: Record<Facility['category'], string> = {
   hospital: 'Hospital',
@@ -65,26 +68,26 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   private readonly voiceService = inject(VoiceNavigationService);
   private readonly changeDetector = inject(ChangeDetectorRef);
   private readonly zone = inject(NgZone);
-  private map?: L.Map;
-  private tileLayer?: L.TileLayer;
+  private map?: LeafletTypes.Map;
+  private tileLayer?: LeafletTypes.TileLayer;
   private resizeObserver?: ResizeObserver;
   private invalidateTimer?: ReturnType<typeof setTimeout>;
   private pageVisible = false;
   private lastTileErrorLogAt = 0;
   private lastFacilitySnapshotDiagnostics = '';
   private lastMarkerDiagnostics = '';
-  private markerCluster?: L.MarkerClusterGroup;
-  private readonly facilityMarkers = new Map<string, L.Marker>();
+  private markerCluster?: LeafletTypes.MarkerClusterGroup;
+  private readonly facilityMarkers = new Map<string, LeafletTypes.Marker>();
   private readonly facilityMarkerSignatures = new Map<string, string>();
-  private readonly openMapMarkerById = new Map<string, L.Marker>();
+  private readonly openMapMarkerById = new Map<string, LeafletTypes.Marker>();
   private readonly openMapMarkerSignatures = new Map<string, string>();
   private facilitiesSubscription?: Subscription;
   private openMapRequest?: AbortController;
   private openMapRefreshTimer?: ReturnType<typeof setTimeout>;
   private lastOpenMapQuery = '';
   private destroyed = false;
-  private routeLayer?: L.Polyline;
-  private destinationMarker?: L.Marker;
+  private routeLayer?: LeafletTypes.Polyline;
+  private destinationMarker?: LeafletTypes.Marker;
   private navigationPosition?: Position;
   private navigationRoute?: NavigationRoute;
   private navigationFacility?: Facility;
@@ -125,7 +128,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   searchText = '';
   categoryFilter: FacilityCategory | 'all' = 'all';
   readonly maxListItems = 100;
-  private locationMarker?: L.CircleMarker;
+  private locationMarker?: LeafletTypes.CircleMarker;
 
   get visibleFacilities(): Facility[] {
     return [
@@ -177,6 +180,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
           validCoordinates: validCoordinateCount,
           invalidCoordinates: markerCandidates.length - validCoordinateCount,
           likelyReversedCoordinates,
+          coordinateFields: summarizeCoordinateFields(facilities),
         };
         const snapshotDiagnosticsKey = JSON.stringify(snapshotDiagnostics);
         if (snapshotDiagnosticsKey !== this.lastFacilitySnapshotDiagnostics) {
@@ -233,6 +237,19 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     }
 
     if (isDevMode()) console.debug('Initializing Leaflet map.', { width, height });
+    const globalLeaflet = (window as Window & { L?: typeof L }).L;
+    const clusterPluginAvailable = typeof L.markerClusterGroup === 'function';
+    console.info('[CareFinder map] MarkerCluster runtime', {
+      leafletVersion: L.version,
+      mapPluginAvailable: clusterPluginAvailable,
+      globalLeafletAvailable: Boolean(globalLeaflet),
+      globalPluginAvailable: typeof globalLeaflet?.markerClusterGroup === 'function',
+      mapUsesGlobalLeaflet: globalLeaflet === L,
+    });
+    if (!clusterPluginAvailable) {
+      throw new Error('Leaflet.markercluster did not register on the Leaflet instance used by the map.');
+    }
+
     this.map = L.map(host, { scrollWheelZoom: false }).setView([12.8797, 121.774], 6);
     this.tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       minZoom: 3,
@@ -264,7 +281,18 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       chunkedLoading: true,
       chunkInterval: 100,
       chunkDelay: 25,
+      clusterPane: 'markerPane',
       iconCreateFunction: createClusterIcon,
+      chunkProgress: (processed, total) => {
+        if (processed !== total) return;
+        console.info('[CareFinder map] MarkerCluster batch complete', {
+          processed,
+          total,
+          clusterAttachedToMap: Boolean(this.map && this.markerCluster && this.map.hasLayer(this.markerCluster)),
+          totalMarkersInCluster: this.markerCluster?.getLayers().length ?? 0,
+          bounds: this.map?.getBounds().toBBoxString(),
+        });
+      },
     }).addTo(this.map);
     this.map.on('moveend', () => this.scheduleOpenMapRefresh());
     this.map.whenReady(() => {
@@ -339,7 +367,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     try {
       const position = await this.locationService.getCurrentPosition();
       if (!this.map) return;
-      const point: L.LatLngExpression = [position.coords.latitude, position.coords.longitude];
+      const point: LeafletTypes.LatLngExpression = [position.coords.latitude, position.coords.longitude];
       this.map.setView(point, 14);
       this.locationMarker?.remove();
       this.locationMarker = L.circleMarker(point, {
@@ -582,7 +610,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
   }
 
   private updateNavigationLocationMarker(position: Position): void {
-    const point: L.LatLngExpression = [position.coords.latitude, position.coords.longitude];
+    const point: LeafletTypes.LatLngExpression = [position.coords.latitude, position.coords.longitude];
     if (this.locationMarker) {
       this.locationMarker.setLatLng(point);
       this.locationMarker.setStyle({
@@ -601,7 +629,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     this.routeLayer?.remove();
     this.destinationMarker?.remove();
     this.routeLayer = L.polyline(
-      route.coordinates.map(([longitude, latitude]) => [latitude, longitude] as L.LatLngExpression),
+      route.coordinates.map(([longitude, latitude]) => [latitude, longitude] as LeafletTypes.LatLngExpression),
       { color: '#1769d2', weight: 6, opacity: 0.88, lineCap: 'round', lineJoin: 'round' },
     ).addTo(this.map);
     const latitude = this.navigationFacility.latitude;
@@ -875,9 +903,15 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
     if (!this.map || !this.markerCluster) return;
     const candidates = this.facilities.filter((item) => item.isActive && !item.isSample && this.matchesFacility(item));
     const result = this.syncFacilityMarkers(candidates, this.facilityMarkers, this.facilityMarkerSignatures);
+    const bounds = this.map.getBounds();
+    const facilitiesInView = candidates.filter((facility) => {
+      const coordinates = facilityCoordinates(facility);
+      return coordinates !== null && bounds.contains([coordinates.latitude, coordinates.longitude]);
+    }).length;
     const diagnostics = {
       source: 'firestore',
       facilitiesPassingFilters: candidates.length,
+      facilitiesInCurrentBounds: facilitiesInView,
       invalidCoordinates: result.invalidCoordinates,
       likelyReversedCoordinates: result.likelyReversedCoordinates,
       invalidCategories: result.invalidCategories,
@@ -889,6 +923,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       totalMarkersInCluster: this.markerCluster.getLayers().length,
       zoom: this.map.getZoom(),
       center: this.map.getCenter(),
+      bounds: bounds.toBBoxString(),
     };
     const diagnosticsKey = JSON.stringify(diagnostics);
     if (diagnosticsKey !== this.lastMarkerDiagnostics) {
@@ -899,7 +934,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
 
   private syncFacilityMarkers(
     facilities: Facility[],
-    markersById: Map<string, L.Marker>,
+    markersById: Map<string, LeafletTypes.Marker>,
     signaturesById: Map<string, string>,
   ): {
     created: number;
@@ -919,7 +954,7 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
 
     const processedIds = new Set<string>();
     const seenIds = new Set<string>();
-    const pendingAdd: L.Marker[] = [];
+    const pendingAdd: LeafletTypes.Marker[] = [];
     let created = 0;
     let added = 0;
     let updated = 0;
@@ -942,12 +977,13 @@ export class MapPage implements OnInit, AfterViewInit, OnDestroy {
       }
 
       seenIds.add(facility.id);
-      const position: L.LatLngExpression = [coordinates.latitude, coordinates.longitude];
+      const position: LeafletTypes.LatLngExpression = [coordinates.latitude, coordinates.longitude];
       const signature = facilityMarkerSignature(facility, coordinates.latitude, coordinates.longitude);
       let marker = markersById.get(facility.id);
       if (!marker) {
         marker = L.marker(position, {
           icon: categoryMarkerIcon(facility.category),
+          pane: 'markerPane',
           keyboard: true,
           title: this.facilityName(facility),
         }).bindPopup(facilityPopup(facility), { maxWidth: 340, minWidth: 250 });
@@ -1193,6 +1229,35 @@ function isFacilityCategory(category: unknown): category is FacilityCategory {
   return typeof category === 'string' && Object.prototype.hasOwnProperty.call(categoryMarkerColors, category);
 }
 
+function summarizeCoordinateFields(facilities: readonly Facility[]): Record<string, {
+  present: number;
+  numbers: number;
+  strings: number;
+  nulls: number;
+  other: number;
+}> {
+  const summarize = (field: string) => {
+    const counts = { present: 0, numbers: 0, strings: 0, nulls: 0, other: 0 };
+    for (const facility of facilities) {
+      const value: unknown = Reflect.get(facility, field);
+      if (value === undefined) continue;
+      counts.present += 1;
+      if (value === null) counts.nulls += 1;
+      else if (typeof value === 'number') counts.numbers += 1;
+      else if (typeof value === 'string') counts.strings += 1;
+      else counts.other += 1;
+    }
+    return counts;
+  };
+
+  return {
+    latitude: summarize('latitude'),
+    longitude: summarize('longitude'),
+    lat: summarize('lat'),
+    lng: summarize('lng'),
+  };
+}
+
 function hasLikelyReversedCoordinates(facility: Facility): boolean {
   const latitude = Number(facility.latitude);
   const longitude = Number(facility.longitude);
@@ -1229,7 +1294,7 @@ function facilityMarkerSignature(facility: Facility, latitude: number, longitude
   ]);
 }
 
-function categoryMarkerIcon(category: Facility['category']): L.DivIcon {
+function categoryMarkerIcon(category: Facility['category']): LeafletTypes.DivIcon {
   const color = categoryMarkerColors[category];
   return L.divIcon({
     className: 'facility-marker',
@@ -1240,7 +1305,7 @@ function categoryMarkerIcon(category: Facility['category']): L.DivIcon {
   });
 }
 
-function createClusterIcon(cluster: L.MarkerCluster): L.DivIcon {
+function createClusterIcon(cluster: LeafletTypes.MarkerCluster): LeafletTypes.DivIcon {
   const count = cluster.getChildCount();
   const size = count >= 100 ? 'large' : count >= 10 ? 'medium' : 'small';
   const diameter = size === 'large' ? 50 : size === 'medium' ? 44 : 38;
